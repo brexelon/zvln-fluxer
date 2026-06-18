@@ -194,7 +194,7 @@ services:
 
   api:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-api:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-api:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_API_PORT: "8080"
@@ -220,7 +220,7 @@ services:
 
   worker:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-api:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-api:${FLUXER_IMAGE_TAG:-v1}
     working_dir: /usr/src/app/fluxer_api
     command: ["./node_modules/.bin/tsx", "src/WorkerEntrypoint.ts"]
     environment:
@@ -239,7 +239,7 @@ services:
 
   gateway:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-gateway:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-gateway:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_GATEWAY_PORT: "8080"
@@ -252,7 +252,7 @@ services:
 
   media-proxy:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-media-proxy:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-media-proxy:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_MEDIA_PROXY_HOST: 0.0.0.0
@@ -267,11 +267,11 @@ services:
 
   static-proxy:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-static:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-static:${FLUXER_IMAGE_TAG:-v1}
 
   app-proxy:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-app-proxy-self-hosted:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-app-proxy-self-hosted:${FLUXER_IMAGE_TAG:-v1}
     environment:
       FLUXER_APP_PROXY_HOST: 0.0.0.0
       FLUXER_APP_PROXY_PORT: "8080"
@@ -284,7 +284,7 @@ services:
 
   snowflakes:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-snowflakes:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-snowflakes:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_SVC_MODE: router
@@ -293,7 +293,7 @@ services:
 
   snowflakes-shard:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-snowflakes:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-snowflakes:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_SVC_MODE: shard
@@ -303,7 +303,7 @@ services:
 
   users:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-users:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-users:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_SVC_MODE: router
@@ -312,7 +312,7 @@ services:
 
   users-shard:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-users:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-users:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_SVC_MODE: shard
@@ -322,7 +322,7 @@ services:
 
   messages:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-messages:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-messages:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_SVC_MODE: router
@@ -331,7 +331,7 @@ services:
 
   messages-shard:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-messages:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-messages:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_SVC_MODE: shard
@@ -342,7 +342,7 @@ services:
 
   unfurl:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-unfurl:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-unfurl:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_SVC_MODE: router
@@ -351,7 +351,7 @@ services:
 
   unfurl-shard:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-unfurl:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-unfurl:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_SVC_MODE: shard
@@ -361,7 +361,7 @@ services:
 
   admin:
     <<: *fluxer-service
-    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-fluxerapp}}/fluxer-admin:${FLUXER_IMAGE_TAG:-v1}
+    image: ${FLUXER_REGISTRY:-ghcr.io/${FLUXER_REGISTRY_OWNER:-brexelon}}/fluxer-admin:${FLUXER_IMAGE_TAG:-v1}
     environment:
       <<: *fluxer-env
       FLUXER_ADMIN_HOST: 0.0.0.0
