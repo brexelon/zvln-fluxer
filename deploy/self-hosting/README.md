@@ -350,6 +350,174 @@ docker compose up -d
 For production, prefer a Postgres-native dump plus object-storage backup so you do
 not need to stop the instance.
 
+## Migrating an existing instance
+
+Use this section to move an existing Fluxer instance onto this stack without
+losing any data. The plan is the same whether the old instance ran an earlier
+version of this Compose stack, a hand-rolled deployment, or managed services:
+carry over the three things that hold state, then let the rebuildable services
+re-derive themselves.
+
+What holds state:
+
+- **`.env` secrets.** Reuse the old secrets instead of generating new ones.
+  Several of them sign data that already exists. Changing them breaks live
+  sessions, push subscriptions, and previously signed media URLs even though the
+  underlying rows survive.
+- **Postgres** (`postgres-data`). Accounts, communities, messages, and all
+  relational data.
+- **Object storage** (`seaweedfs-data`). Uploaded attachments, avatars, and other
+  media.
+
+What you do not need to migrate:
+
+- **Meilisearch** (`meilisearch-data`) is a search index rebuilt from Postgres.
+- **Valkey** is a cache and runs with persistence disabled.
+- **NATS** (`nats-data`) carries transient events.
+
+> [!WARNING]
+> **Take a backup first.** Snapshot the source instance (see [Backups](#backups))
+> before you begin so you can roll back if a step goes wrong.
+
+### Step 1: Set up the new stack but do not start it
+
+Follow [Step 2](#step-2-download-the-stack) to get the stack files into a new
+directory. Stop before `docker compose up`. Do not run the secret-generation
+commands in [Step 3](#step-3-configure-env) — you will reuse the old secrets
+instead.
+
+### Step 2: Carry over `.env`
+
+Copy the secret values from the old instance into the new `.env`. The simplest
+path is to start from the old `.env` and only update the hostname block
+(`FLUXER_DOMAIN`, `FLUXER_PUBLIC_SCHEME`, `FLUXER_PUBLIC_PORT`,
+`FLUXER_CADDY_SITE_ADDRESS`) if it is changing.
+
+At minimum, the following must match the old instance so existing data stays
+valid:
+
+```ini
+POSTGRES_PASSWORD=
+MEILI_MASTER_KEY=
+FLUXER_S3_ACCESS_KEY=
+FLUXER_S3_SECRET_KEY=
+FLUXER_SUDO_MODE_SECRET=
+FLUXER_CONNECTION_INITIATION_SECRET=
+FLUXER_GATEWAY_RPC_AUTH_TOKEN=
+FLUXER_MEDIA_PROXY_SECRET_KEY=
+FLUXER_MEDIA_PROXY_UPLOAD_RELAY_SECRET_BASE64=
+FLUXER_ADMIN_SECRET_KEY_BASE=
+FLUXER_ADMIN_OAUTH_CLIENT_SECRET=
+FLUXER_VAPID_PUBLIC_KEY=
+FLUXER_VAPID_PRIVATE_KEY=
+LIVEKIT_API_SECRET=
+```
+
+If the old instance used a different `POSTGRES_PASSWORD` or S3 credentials and you
+prefer to keep this stack's new values, that is fine — just make sure the database
+and object storage you import in the next steps were created with whatever
+credentials end up in `.env`.
+
+### Step 3: Stop the source instance
+
+Take the old instance offline so the data you copy is consistent and nothing
+writes to it mid-migration.
+
+```bash
+# from the old instance directory
+docker compose stop
+```
+
+For a managed/external Postgres and S3, put the application into maintenance (stop
+`api`, `worker`, and `gateway`) so the dump and object copy are point-in-time
+consistent.
+
+### Step 4: Migrate Postgres
+
+The new stack creates an empty `fluxer` database on first start. Replace it with
+the data from the old instance.
+
+**If the old instance also used this Compose stack**, the fastest path is to copy
+the `postgres-data` volume directly. With both stacks stopped:
+
+```bash
+# OLD_PROJECT and NEW_PROJECT are the Compose project names (default: fluxer)
+docker run --rm \
+  -v OLD_PROJECT_postgres-data:/from \
+  -v NEW_PROJECT_postgres-data:/to \
+  alpine sh -c "rm -rf /to/* && cp -a /from/. /to/"
+```
+
+A raw volume copy only works when both sides run the same Postgres major version
+(this stack uses `postgres:16-alpine`). If the versions differ, or the old
+Postgres lives elsewhere, use a logical dump instead:
+
+```bash
+# Dump from the source (adjust host/user as needed)
+pg_dump -Fc -U fluxer -d fluxer -f fluxer.dump
+
+# Start only Postgres on the new stack
+docker compose up -d postgres
+
+# Restore into the new database
+docker compose cp fluxer.dump postgres:/tmp/fluxer.dump
+docker compose exec postgres pg_restore -U fluxer -d fluxer --clean --if-exists /tmp/fluxer.dump
+```
+
+### Step 5: Migrate object storage
+
+Bring the uploaded media across so attachments and avatars keep resolving.
+
+**If the old instance used this stack's bundled SeaweedFS**, copy the
+`seaweedfs-data` volume the same way as Postgres, with both stacks stopped:
+
+```bash
+docker run --rm \
+  -v OLD_PROJECT_seaweedfs-data:/from \
+  -v NEW_PROJECT_seaweedfs-data:/to \
+  alpine sh -c "rm -rf /to/* && cp -a /from/. /to/"
+```
+
+**If the old media lived in a different S3-compatible store**, sync each bucket
+into the new SeaweedFS instead. Start the storage service and let
+`seaweedfs-init` create the buckets first:
+
+```bash
+docker compose up -d seaweedfs seaweedfs-init
+```
+
+Then sync the buckets (`fluxer`, `fluxer-uploads`, `fluxer-downloads`,
+`fluxer-reports`, `fluxer-harvests`) from the old store to the new one with a tool
+such as `rclone` or the AWS CLI, pointing the destination endpoint at the
+SeaweedFS S3 API on `http://localhost:8333` with the credentials from `.env`.
+
+### Step 6: Start the new stack and reindex search
+
+Bring the full stack up:
+
+```bash
+docker compose up -d
+```
+
+Meilisearch starts empty. Trigger a search reindex from the admin dashboard
+(`/admin`) so message and community search reflects the imported data. Push,
+sessions, and signed media URLs continue to work because you reused the
+matching secrets.
+
+### Step 7: Verify and cut over
+
+Run the [Step 7 health checks](#step-7-verify-the-instance) against the new
+instance, then confirm in the web app that:
+
+- You can log in with an existing account (no re-registration needed).
+- Existing messages, communities, and members are present.
+- Old attachments, avatars, and other media load.
+- Search returns results once the reindex completes.
+
+Once verified, update DNS or your Cloudflare Tunnel to point the hostname at the
+new instance. Keep the source instance's backups until you are confident the
+migration is complete.
+
 ## Upgrading
 
 The default image tag is `v1`, which tracks the latest compatible release:
