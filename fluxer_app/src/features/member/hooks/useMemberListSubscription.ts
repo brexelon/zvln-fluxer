@@ -245,10 +245,22 @@ export function useMemberListSubscription({
 				}
 			},
 		);
+		const disposeResumeReaction = reaction(
+			() => GatewayConnection.resumeGeneration,
+			() => {
+				if (!enabled || !readSubscriptionModel().isActive) {
+					return;
+				}
+				sendSubscriptionEvent({type: 'memberListSubscription.subscriptionCleared'});
+				MemberSidebar.claimMemberListSubscription(guildId, channelId, ownerId);
+				resubscribe();
+			},
+		);
 		return () => {
 			disposeSessionReaction();
 			disposeGatewayReadyReaction();
 			disposeGuildListReaction();
+			disposeResumeReaction();
 		};
 	}, [
 		guildId,
