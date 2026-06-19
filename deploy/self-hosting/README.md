@@ -26,21 +26,29 @@ The self-hosted stack is one Docker Compose project defined in
 - **LiveKit** handles voice and video signaling and WebRTC media.
 - **Postgres**, **Valkey**, **NATS**, **Meilisearch**, and **SeaweedFS** provide data, cache, events, search, and S3-compatible object storage.
 
-The app bundle is served by the self-host app-proxy image; shared static assets
-are served by the standalone `static-proxy` container. The stack does not depend
-on Fluxer's public static asset host.
+Every Fluxer service in this stack is **built from source in this repository**
+rather than pulled from a container registry, so you do not need registry access
+or pre-published images to run it. The app bundle is served by the self-host
+app-proxy container; shared static assets are served by the standalone
+`static-proxy` container. The stack does not depend on Fluxer's public static
+asset host.
 
 ## Requirements
 
 - A Linux server or VM that can run Docker Engine.
-- Docker Engine 24 or newer plus the Docker Compose v2 plugin.
+- Docker Engine 24 or newer plus the Docker Compose v2 plugin (with BuildKit, which is the default in Compose v2).
+- A `git` client and a local clone of this repository, since the images are built from source.
 - A hostname for the instance, for example `chat.example.com`.
 - Either public inbound `80/tcp` and `443/tcp`, or a Cloudflare Tunnel that routes the hostname to the Caddy container.
 - For production voice and video media, a public path to `7881/tcp` and `7882/udp`.
-- At least 2 vCPU, 4 GB RAM, and 20 GB disk. Use 4 vCPU and 8 GB RAM or more for a small active community.
+- At least 2 vCPU, 4 GB RAM, and 20 GB disk to run the stack. Building the
+  images is more demanding: plan for 4 vCPU, 8 GB RAM, and 30 GB of free disk so
+  the Rust and frontend builds have room. Use 4 vCPU and 8 GB RAM or more at
+  runtime for a small active community.
 
-The stack idles around a few GB of memory, and startup is the heaviest point
-because all service images initialize at once.
+The stack idles around a few GB of memory. The first build is the heaviest step
+because every Fluxer service is compiled from source; once images are built,
+restarts and upgrades reuse the build cache.
 
 ## Step 1: Install Docker
 
@@ -59,25 +67,11 @@ docker compose version
 
 Use Docker Engine 24 or newer and the Compose v2 plugin.
 
-## Step 2: Download the stack
+## Step 2: Clone the repository
 
-You only need four files: `docker-compose.yml`, `Caddyfile`, `livekit.yaml`, and
-your own `.env`.
-
-**Option A — download just the stack files:**
-
-```bash
-mkdir fluxer
-cd fluxer
-
-base=https://raw.githubusercontent.com/brexelon/zvln-fluxer/main/deploy/self-hosting
-curl -fsSLO "$base/docker-compose.yml"
-curl -fsSLO "$base/Caddyfile"
-curl -fsSLO "$base/livekit.yaml"
-curl -fsSL "$base/.env.example" -o .env
-```
-
-**Option B — clone the repository** and work from this directory:
+The stack builds every Fluxer service from source, so you need a full clone of
+the repository rather than just the Compose files. The build context is the
+repository root, and you run the stack from this directory.
 
 ```bash
 git clone https://github.com/brexelon/zvln-fluxer.git
@@ -85,7 +79,7 @@ cd zvln-fluxer/deploy/self-hosting
 cp .env.example .env
 ```
 
-Either way you should now have:
+You should now have, in `deploy/self-hosting`:
 
 ```text
 Caddyfile
@@ -93,6 +87,10 @@ docker-compose.yml
 livekit.yaml
 .env
 ```
+
+All `docker compose` commands in this guide are run from
+`deploy/self-hosting`, and they build images from the source tree two levels up
+in the same clone.
 
 ## Step 3: Configure `.env`
 
@@ -215,13 +213,23 @@ unless you are intentionally exposing voice/video media or using a TURN server.
 > such as UFW because Docker installs its own packet-filtering rules. Prefer your
 > cloud provider's firewall or security group for internet-facing policy.
 
-## Step 6: Start the stack
+## Step 6: Build and start the stack
+
+Build the Fluxer service images from source. The first build compiles the Rust
+binaries and the web frontend, so it can take a while; later builds reuse the
+cache and are much faster.
+
+```bash
+docker compose build
+```
 
 Start Fluxer:
 
 ```bash
 docker compose up -d
 ```
+
+You can also combine the two steps with `docker compose up -d --build`.
 
 If you are using the Cloudflare override from above, start both files together:
 
@@ -236,7 +244,8 @@ docker compose ps
 docker compose logs -f api
 ```
 
-The first start can take several minutes while images download and services
+The first build can take several minutes (or longer on a small server) while the
+images compile, and the first start then needs a little more time while services
 initialize. `seaweedfs-init` exits after creating object-storage buckets; that is
 expected.
 
@@ -381,10 +390,10 @@ What you do not need to migrate:
 
 ### Step 1: Set up the new stack but do not start it
 
-Follow [Step 2](#step-2-download-the-stack) to get the stack files into a new
-directory. Stop before `docker compose up`. Do not run the secret-generation
-commands in [Step 3](#step-3-configure-env) — you will reuse the old secrets
-instead.
+Follow [Step 2](#step-2-clone-the-repository) to clone the repository into a new
+directory. Stop before `docker compose build` and `docker compose up`. Do not run
+the secret-generation commands in [Step 3](#step-3-configure-env) — you will reuse
+the old secrets instead.
 
 ### Step 2: Carry over `.env`
 
@@ -493,10 +502,10 @@ SeaweedFS S3 API on `http://localhost:8333` with the credentials from `.env`.
 
 ### Step 6: Start the new stack and reindex search
 
-Bring the full stack up:
+Build the images and bring the full stack up:
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
 Meilisearch starts empty. Trigger a search reindex from the admin dashboard
@@ -520,18 +529,27 @@ migration is complete.
 
 ## Upgrading
 
-The default image tag is `v1`, which tracks the latest compatible release:
+Because the images are built from source, upgrading means pulling the latest
+source and rebuilding:
 
 ```bash
-docker compose pull
+git pull
+docker compose build
 docker compose up -d
 ```
 
-The `fluxer-static` image is part of the default stack, so static asset updates
-are picked up by the same pull-and-restart flow.
+The `fluxer-static` image is built as part of the same stack, so static asset
+updates are picked up by the same rebuild-and-restart flow.
 
-To pin a specific release, set `FLUXER_IMAGE_TAG` in `.env` to the release tag you
-want, then pull and restart.
+To run a specific release instead of the tip of `main`, check out that release
+tag before rebuilding:
+
+```bash
+git fetch --tags
+git checkout v1.2.3   # replace with the release tag you want
+docker compose build
+docker compose up -d
+```
 
 ## Getting help
 
