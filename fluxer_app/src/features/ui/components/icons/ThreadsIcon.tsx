@@ -17,21 +17,21 @@ export const ThreadsIcon = React.forwardRef<SVGSVGElement, IconProps>(({size = 2
 		{...props}
 	>
 		<path
-			d="M5.5 17.5L16 7"
+			d="M6.4 14.4L14.4 6.4"
 			stroke="currentColor"
 			strokeWidth="2"
 			strokeLinecap="round"
 			data-flx="ui.icons.threads-icon.path"
 		/>
 		<path
-			d="M8 20L18.5 9.5"
+			d="M8 16L16 8"
 			stroke="currentColor"
 			strokeWidth="2"
 			strokeLinecap="round"
 			data-flx="ui.icons.threads-icon.path--2"
 		/>
 		<path
-			d="M11 22L21 12"
+			d="M9.6 17.6L17.6 9.6"
 			stroke="currentColor"
 			strokeWidth="2"
 			strokeLinecap="round"
