@@ -54,7 +54,7 @@ const FULL_USER_COLUMNS: &str = "\
 const USER_BATCH_SIZE: usize = 128;
 const USER_BATCH_CONCURRENCY: usize = 8;
 const FLUXER_SYSTEM_USER_ID: i64 = 0;
-const FLUXER_SYSTEM_USERNAME: &str = "Fluxer";
+const FLUXER_SYSTEM_USERNAME: &str = "ZVLN";
 const FLUXER_SYSTEM_DISCRIMINATOR: i32 = 0;
 const USER_FLAG_STAFF: i64 = 1;
 
@@ -749,7 +749,7 @@ mod tests {
         let partial = fluxer_system_user().to_partial();
 
         assert_eq!(partial.user_id, 0);
-        assert_eq!(partial.username, "Fluxer");
+        assert_eq!(partial.username, FLUXER_SYSTEM_USERNAME);
         assert_eq!(partial.discriminator, 0);
         assert_eq!(partial.global_name, None);
         assert_eq!(partial.bot, Some(true));
