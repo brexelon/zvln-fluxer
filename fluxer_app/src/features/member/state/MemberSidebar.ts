@@ -158,6 +158,7 @@ class MemberSidebar {
 	lastAccess: Record<string, Record<string, number>> = {};
 	pruneIntervalId: number | null = null;
 	sessionVersion = 0;
+	listUpdateVersions = new Map<string, number>();
 	private materializedMemberCache = new WeakMap<MemberListMember, GuildMember>();
 	private pendingListUpdateBatches = new Map<string, PendingMemberListUpdateBatch>();
 	private preloadLeaseTimeoutId: number | null = null;
@@ -200,6 +201,7 @@ class MemberSidebar {
 		this.listSubscribedChannelIds = {};
 		this.activeMemberListSubscription = null;
 		this.lastAccess = {};
+		this.listUpdateVersions.clear();
 		this.sessionVersion += 1;
 	}
 
@@ -609,6 +611,7 @@ class MemberSidebar {
 		listState.knownCustomStatuses = nextKnownCustomStatuses;
 		listState.subscribedRanges = subscribedRanges;
 		listState.hasReceivedInitialPayload = true;
+		this.bumpListUpdateVersion(guildId, storageKey);
 		this.lists = {...this.lists, [guildId]: {...guildLists, [storageKey]: listState}};
 		if (duplicateUserIds.length > 0) {
 			const uniqueDuplicateUserIds = Array.from(new Set(duplicateUserIds));
@@ -918,6 +921,25 @@ class MemberSidebar {
 			}
 		}
 		return items;
+	}
+
+	private listUpdateVersionKey(guildId: string, listId: string): string {
+		return `${guildId} ${listId}`;
+	}
+
+	private bumpListUpdateVersion(guildId: string, listId: string): void {
+		const key = this.listUpdateVersionKey(guildId, listId);
+		this.listUpdateVersions.set(key, (this.listUpdateVersions.get(key) ?? 0) + 1);
+	}
+
+	/**
+	 * Monotonic counter that increments every time a member list update is applied
+	 * for the given channel's list. Subscribers use it to detect a fresh SYNC after
+	 * a gateway resume even when stale members remain cached.
+	 */
+	getListUpdateVersion(guildId: string, channelId: string): number {
+		const storageKey = this.resolveListKey(guildId, channelId);
+		return this.listUpdateVersions.get(this.listUpdateVersionKey(guildId, storageKey)) ?? 0;
 	}
 
 	getList(guildId: string, listId: string): MemberListState | undefined {
@@ -1374,6 +1396,7 @@ class MemberSidebar {
 
 	private evictList(guildId: string, listId: string): void {
 		this.clearPendingListUpdateBatch(guildId, listId);
+		this.listUpdateVersions.delete(this.listUpdateVersionKey(guildId, listId));
 		const active = this.activeMemberListSubscription;
 		if (active?.source === 'preload' && active.guildId === guildId) {
 			const activeListId = this.resolveListKey(guildId, active.channelId);

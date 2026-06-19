@@ -166,6 +166,12 @@ export const ResolveReportRequest = z.object({
 
 export type ResolveReportRequest = z.infer<typeof ResolveReportRequest>;
 
+export const DeleteReportRequest = z.object({
+	report_id: SnowflakeType.describe('The ID of the report to delete'),
+});
+
+export type DeleteReportRequest = z.infer<typeof DeleteReportRequest>;
+
 export const RefreshSearchIndexRequest = z.object({
 	index_type: SearchIndexTypeEnum,
 	guild_id: SnowflakeType.optional().describe('Specific guild ID to reindex'),
@@ -1401,6 +1407,10 @@ export const ResolveReportResponse = z.object({
 	status: ReportStatusSchema,
 	resolved_at: z.string().nullable(),
 	public_comment: z.string().nullable(),
+});
+export const DeleteReportResponse = z.object({
+	report_id: SnowflakeStringType,
+	deleted: z.boolean(),
 });
 export const SearchReportsResponse = z.object({
 	reports: z.array(ReportAdminResponseSchema),

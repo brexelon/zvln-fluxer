@@ -6229,6 +6229,63 @@
 				}
 			}
 		},
+		"/admin/reports/delete": {
+			"post": {
+				"operationId": "delete_report",
+				"summary": "Delete report",
+				"tags": ["Admin"],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {"application/json": {"schema": {"$ref": "#/components/schemas/DeleteReportResponse"}}}
+					},
+					"400": {
+						"description": "Bad Request - The request was malformed or contained invalid data",
+						"content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+					},
+					"401": {
+						"description": "Unauthorized - Authentication is required or the token is invalid",
+						"content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+					},
+					"403": {
+						"description": "Forbidden - You do not have permission to perform this action",
+						"content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+					},
+					"429": {
+						"description": "Too Many Requests - You are being rate limited",
+						"content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}},
+						"headers": {
+							"Retry-After": {
+								"description": "Number of seconds to wait before retrying (only on 429)",
+								"schema": {"type": "integer"}
+							},
+							"X-RateLimit-Limit": {
+								"description": "The number of requests that can be made in the current window",
+								"schema": {"type": "integer"}
+							},
+							"X-RateLimit-Remaining": {
+								"description": "The number of remaining requests that can be made",
+								"schema": {"type": "integer"}
+							},
+							"X-RateLimit-Reset": {
+								"description": "Unix timestamp when the rate limit resets",
+								"schema": {"type": "integer"}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal Server Error - An unexpected error occurred",
+						"content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+					}
+				},
+				"description": "Permanently deletes a report from the database and removes it from the search index. Creates an audit log entry. Requires REPORT_DELETE permission.",
+				"security": [{"adminApiKey": []}],
+				"requestBody": {
+					"required": true,
+					"content": {"application/json": {"schema": {"$ref": "#/components/schemas/DeleteReportRequest"}}}
+				}
+			}
+		},
 		"/admin/reports/resolve": {
 			"post": {
 				"operationId": "resolve_report",
@@ -14688,6 +14745,21 @@
 					"public_comment": {"nullable": true, "type": "string"}
 				},
 				"required": ["report_id", "status", "resolved_at", "public_comment"]
+			},
+			"DeleteReportResponse": {
+				"type": "object",
+				"properties": {
+					"report_id": {"$ref": "#/components/schemas/SnowflakeType"},
+					"deleted": {"type": "boolean"}
+				},
+				"required": ["report_id", "deleted"]
+			},
+			"DeleteReportRequest": {
+				"type": "object",
+				"properties": {
+					"report_id": {"$ref": "#/components/schemas/SnowflakeType"}
+				},
+				"required": ["report_id"]
 			},
 			"ResolveReportRequest": {
 				"type": "object",
