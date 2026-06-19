@@ -104,8 +104,8 @@ maybe_process_guild(GuildId, GuildSubData, Guilds, SessionId, SocketPid, Session
 process_guild_sub_options(GuildId, GuildPid, GuildSubData, SessionId, SocketPid, SessionState) ->
     WasActive = not session_passive:is_passive(GuildId, SessionState),
     ActiveChanged = process_active_flag(GuildSubData, GuildPid, SessionId, WasActive),
-    ShouldSync = process_sync_flag(GuildSubData, GuildId, GuildPid, SessionId, ActiveChanged),
-    process_member_list_channels(GuildSubData, GuildId, GuildPid, SessionId, SocketPid, ShouldSync),
+    process_sync_flag(GuildSubData, GuildId, GuildPid, SessionId, ActiveChanged),
+    process_member_list_channels(GuildSubData, GuildId, GuildPid, SessionId, SocketPid),
     process_member_subscriptions(GuildSubData, GuildPid, SessionId),
     process_typing_flag(GuildSubData, GuildPid, SessionId),
     ok.
@@ -123,7 +123,7 @@ process_active_flag(GuildSubData, GuildPid, SessionId, WasActive) ->
             WasActive
     end.
 
--spec process_sync_flag(map(), integer(), pid(), session_id(), boolean()) -> boolean().
+-spec process_sync_flag(map(), integer(), pid(), session_id(), boolean()) -> ok.
 process_sync_flag(GuildSubData, _GuildId, GuildPid, SessionId, ActiveChanged) ->
     ShouldSync = maps:get(<<"sync">>, GuildSubData, false) orelse ActiveChanged,
     case ShouldSync of
@@ -132,49 +132,43 @@ process_sync_flag(GuildSubData, _GuildId, GuildPid, SessionId, ActiveChanged) ->
             ok;
         false ->
             ok
-    end,
-    ShouldSync.
+    end.
 
--spec process_member_list_channels(
-    map(), integer(), pid(), session_id(), pid() | undefined, boolean()
-) -> ok.
-process_member_list_channels(GuildSubData, GuildId, GuildPid, SessionId, SocketPid, Force) ->
+-spec process_member_list_channels(map(), integer(), pid(), session_id(), pid() | undefined) ->
+    ok.
+process_member_list_channels(GuildSubData, GuildId, GuildPid, SessionId, SocketPid) ->
     case maps:find(<<"member_list_channels">>, GuildSubData) of
         {ok, MLC} when is_map(MLC) ->
-            foreach_channel_subscribe(MLC, GuildId, GuildPid, SessionId, SocketPid, Force);
+            foreach_channel_subscribe(MLC, GuildId, GuildPid, SessionId, SocketPid);
         _ ->
             ok
     end.
 
--spec foreach_channel_subscribe(
-    map(), integer(), pid(), session_id(), pid() | undefined, boolean()
-) -> ok.
-foreach_channel_subscribe(MemberListChannels, GuildId, GuildPid, SessionId, SocketPid, Force) ->
+-spec foreach_channel_subscribe(map(), integer(), pid(), session_id(), pid() | undefined) -> ok.
+foreach_channel_subscribe(MemberListChannels, GuildId, GuildPid, SessionId, SocketPid) ->
     maps:foreach(
         fun(ChIdBin, Ranges) ->
             process_channel_lazy_subscribe(
-                ChIdBin, Ranges, GuildId, GuildPid, SessionId, SocketPid, Force
+                ChIdBin, Ranges, GuildId, GuildPid, SessionId, SocketPid
             )
         end,
         MemberListChannels
     ).
 
 -spec process_channel_lazy_subscribe(
-    binary(), list(), integer(), pid(), session_id(), pid() | undefined, boolean()
+    binary(), list(), integer(), pid(), session_id(), pid() | undefined
 ) -> ok.
-process_channel_lazy_subscribe(
-    ChannelIdBin, Ranges, _GuildId, GuildPid, SessionId, _SocketPid, Force
-) ->
+process_channel_lazy_subscribe(ChannelIdBin, Ranges, _GuildId, GuildPid, SessionId, _SocketPid) ->
     case validation:validate_snowflake(<<"channel_id">>, ChannelIdBin) of
         {ok, ChannelId} ->
-            safe_lazy_subscribe(GuildPid, SessionId, ChannelId, Ranges, Force);
+            safe_lazy_subscribe(GuildPid, SessionId, ChannelId, Ranges);
         {error, _, _} ->
             ok
     end,
     ok.
 
--spec safe_lazy_subscribe(pid(), session_id(), integer(), list(), boolean()) -> ok.
-safe_lazy_subscribe(GuildPid, SessionId, ChannelId, Ranges, Force) ->
+-spec safe_lazy_subscribe(pid(), session_id(), integer(), list()) -> ok.
+safe_lazy_subscribe(GuildPid, SessionId, ChannelId, Ranges) ->
     ParsedRanges = parse_ranges(Ranges),
     try
         gen_server:call(
@@ -182,8 +176,7 @@ safe_lazy_subscribe(GuildPid, SessionId, ChannelId, Ranges, Force) ->
             {lazy_subscribe, #{
                 session_id => SessionId,
                 channel_id => ChannelId,
-                ranges => ParsedRanges,
-                force => Force
+                ranges => ParsedRanges
             }},
             2000
         )

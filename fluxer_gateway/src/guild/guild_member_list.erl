@@ -8,7 +8,6 @@
     get_member_groups/2,
     get_counts/2,
     subscribe_ranges/4,
-    subscribe_ranges/5,
     unsubscribe_session/2,
     get_items_in_range/3,
     build_sync_response/4,
@@ -76,11 +75,6 @@ get_counts(ListId, State) ->
     {guild_state(), boolean(), [range()]}.
 subscribe_ranges(SessionId, ListId, Ranges, State) ->
     guild_member_list_subscribe:subscribe_ranges(SessionId, ListId, Ranges, State).
-
--spec subscribe_ranges(binary(), list_id(), [range()], boolean(), guild_state()) ->
-    {guild_state(), boolean(), [range()]}.
-subscribe_ranges(SessionId, ListId, Ranges, Force, State) ->
-    guild_member_list_subscribe:subscribe_ranges(SessionId, ListId, Ranges, Force, State).
 
 -spec unsubscribe_session(binary(), guild_state()) -> guild_state().
 unsubscribe_session(SessionId, State) ->

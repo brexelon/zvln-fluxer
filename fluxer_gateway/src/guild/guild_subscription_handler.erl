@@ -76,12 +76,11 @@ merge_lazy_subscribe_request(#{ranges := _ExistingRanges}, #{ranges := []} = Req
 merge_lazy_subscribe_request(#{ranges := []}, #{ranges := _Ranges} = Request) ->
     Request;
 merge_lazy_subscribe_request(
-    #{ranges := ExistingRanges} = ExistingRequest, #{ranges := Ranges} = Request
+    #{ranges := ExistingRanges}, #{ranges := Ranges} = Request
 ) when
     is_list(ExistingRanges), is_list(Ranges)
 ->
-    MergedForce = maps:get(force, ExistingRequest, false) orelse maps:get(force, Request, false),
-    Request#{ranges := merge_lazy_subscribe_ranges(ExistingRanges, Ranges), force => MergedForce};
+    Request#{ranges := merge_lazy_subscribe_ranges(ExistingRanges, Ranges)};
 merge_lazy_subscribe_request(_ExistingRequest, Request) ->
     Request.
 
@@ -136,23 +135,22 @@ process_buffered_lazy_subscribe(BufferKey, Buffer, State) ->
 -spec process_lazy_subscribe(map(), guild_state()) -> guild_state().
 process_lazy_subscribe(Request, State) ->
     #{session_id := SessionId, channel_id := ChannelId, ranges := Ranges} = Request,
-    Force = maps:get(force, Request, false),
     case should_ignore_member_list_subscribe(Ranges, State) of
         true ->
             State;
         false ->
-            do_process_lazy_subscribe(SessionId, ChannelId, Ranges, Force, State)
+            do_process_lazy_subscribe(SessionId, ChannelId, Ranges, State)
     end.
 
--spec do_process_lazy_subscribe(session_id(), channel_id(), list(), boolean(), guild_state()) ->
+-spec do_process_lazy_subscribe(session_id(), channel_id(), list(), guild_state()) ->
     guild_state().
-do_process_lazy_subscribe(SessionId, ChannelId, Ranges, Force, State) ->
+do_process_lazy_subscribe(SessionId, ChannelId, Ranges, State) ->
     Sessions0 = maps:get(sessions, State, #{}),
     SessionUserId = get_session_user_id(SessionId, Sessions0),
     case maps:get(id, State, undefined) of
         GuildId when is_integer(GuildId) ->
             process_lazy_subscribe_for_guild(
-                GuildId, ChannelId, SessionId, SessionUserId, Ranges, Force, State
+                GuildId, ChannelId, SessionId, SessionUserId, Ranges, State
             );
         _ ->
             State
@@ -164,7 +162,6 @@ do_process_lazy_subscribe(SessionId, ChannelId, Ranges, Force, State) ->
     session_id(),
     user_id() | undefined,
     list(),
-    boolean(),
     guild_state()
 ) -> guild_state().
 process_lazy_subscribe_for_guild(
@@ -173,7 +170,6 @@ process_lazy_subscribe_for_guild(
     SessionId,
     SessionUserId,
     Ranges,
-    Force,
     State
 ) ->
     CanView =
@@ -188,7 +184,7 @@ process_lazy_subscribe_for_guild(
         true ->
             ListId = guild_member_list:calculate_list_id(ChannelId, State),
             subscribe_member_list_ranges(
-                ListId, GuildId, ChannelId, SessionId, Ranges, Force, State
+                ListId, GuildId, ChannelId, SessionId, Ranges, State
             );
         false ->
             State
@@ -200,14 +196,13 @@ process_lazy_subscribe_for_guild(
     channel_id(),
     session_id(),
     list(),
-    boolean(),
     guild_state()
 ) -> guild_state().
-subscribe_member_list_ranges(undefined, _GuildId, _ChannelId, _SessionId, _Ranges, _Force, State) ->
+subscribe_member_list_ranges(undefined, _GuildId, _ChannelId, _SessionId, _Ranges, State) ->
     State;
-subscribe_member_list_ranges(ListId, GuildId, ChannelId, SessionId, Ranges, Force, State) ->
+subscribe_member_list_ranges(ListId, GuildId, ChannelId, SessionId, Ranges, State) ->
     {NewState, ShouldSendSync, NormalizedRanges} =
-        guild_member_list:subscribe_ranges(SessionId, ListId, Ranges, Force, State),
+        guild_member_list:subscribe_ranges(SessionId, ListId, Ranges, State),
     process_lazy_subscribe_sync(
         ShouldSendSync, NormalizedRanges, GuildId, ListId, ChannelId, SessionId, NewState
     ).
@@ -417,18 +412,9 @@ buffer_lazy_subscribe_merges_older_request_ranges_test() ->
     Request2 = #{session_id => <<"s1">>, channel_id => 500, ranges => [{2, 99}]},
     State2 = buffer_lazy_subscribe(Request2, State1),
     Buffer = maps:get(lazy_subscribe_buffer, State2),
-    ?assertEqual(Request2#{ranges := [{0, 99}], force => false}, maps:get({<<"s1">>, 500}, Buffer)),
+    ?assertEqual(Request2#{ranges := [{0, 99}]}, maps:get({<<"s1">>, 500}, Buffer)),
     ?assertEqual(1, map_size(Buffer)),
     ?assertEqual([{<<"s1">>, 500}], maps:get(lazy_subscribe_order, State2)).
-
-buffer_lazy_subscribe_merge_preserves_force_test() ->
-    State = #{},
-    Request1 = #{session_id => <<"s1">>, channel_id => 500, ranges => [{0, 1}], force => true},
-    State1 = buffer_lazy_subscribe(Request1, State),
-    Request2 = #{session_id => <<"s1">>, channel_id => 500, ranges => [{2, 99}], force => false},
-    State2 = buffer_lazy_subscribe(Request2, State1),
-    Buffer = maps:get(lazy_subscribe_buffer, State2),
-    ?assertEqual(Request2#{ranges := [{0, 99}], force := true}, maps:get({<<"s1">>, 500}, Buffer)).
 
 buffer_lazy_subscribe_empty_ranges_replace_buffered_subscribe_test() ->
     State = #{},

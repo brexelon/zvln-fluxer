@@ -11,7 +11,6 @@
     new/0,
     destroy/1,
     subscribe/4,
-    subscribe/5,
     retain_only_session_list/3,
     unsubscribe_session/2,
     get_list_subs/2,
@@ -62,10 +61,6 @@ safe_ets_delete(Tab) ->
 
 -spec subscribe(binary(), binary(), [range()], ets:table()) -> {[range()], boolean()}.
 subscribe(SessionId, ListId, NormalizedRanges, Tab) ->
-    subscribe(SessionId, ListId, NormalizedRanges, false, Tab).
-
--spec subscribe(binary(), binary(), [range()], boolean(), ets:table()) -> {[range()], boolean()}.
-subscribe(SessionId, ListId, NormalizedRanges, Force, Tab) ->
     [{idx_tab, IdxTab}] = ets:lookup(Tab, idx_tab),
     Key = {ListId, SessionId},
     OldRanges = lookup_list(Tab, Key),
@@ -77,7 +72,7 @@ subscribe(SessionId, ListId, NormalizedRanges, Force, Tab) ->
             ets:insert(Tab, {Key, NormalizedRanges}),
             add_to_session_index(IdxTab, SessionId, ListId)
     end,
-    ShouldSync = NormalizedRanges =/= [] andalso (Force orelse NormalizedRanges =/= OldRanges),
+    ShouldSync = NormalizedRanges =/= [] andalso NormalizedRanges =/= OldRanges,
     {OldRanges, ShouldSync}.
 
 -spec retain_only_session_list(binary(), binary(), ets:table()) -> [binary()].
@@ -276,23 +271,6 @@ retain_only_session_list_leaves_other_sessions_untouched_test() ->
     retain_only_session_list(<<"s1">>, <<"100">>, Tab),
     ?assert(is_subscribed(<<"100">>, <<"s2">>, Tab)),
     ?assert(is_subscribed(<<"200">>, <<"s2">>, Tab)),
-    destroy(Tab).
-
-subscribe_unchanged_ranges_does_not_sync_test() ->
-    Tab = new(),
-    ?assertEqual({[], true}, subscribe(<<"s1">>, <<"100">>, [{0, 99}], Tab)),
-    ?assertEqual({[{0, 99}], false}, subscribe(<<"s1">>, <<"100">>, [{0, 99}], Tab)),
-    destroy(Tab).
-
-subscribe_force_resyncs_unchanged_ranges_test() ->
-    Tab = new(),
-    ?assertEqual({[], true}, subscribe(<<"s1">>, <<"100">>, [{0, 99}], Tab)),
-    ?assertEqual({[{0, 99}], true}, subscribe(<<"s1">>, <<"100">>, [{0, 99}], true, Tab)),
-    destroy(Tab).
-
-subscribe_force_does_not_sync_empty_ranges_test() ->
-    Tab = new(),
-    ?assertEqual({[], false}, subscribe(<<"s1">>, <<"100">>, [], true, Tab)),
     destroy(Tab).
 
 -endif.

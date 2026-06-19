@@ -3,13 +3,8 @@
 -module(guild_member_list_subscribe).
 -typing([eqwalizer]).
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
-
 -export([
     subscribe_ranges/4,
-    subscribe_ranges/5,
     unsubscribe_session/2,
     send_member_list_update_to_sessions/5,
     dispatch_sync_to_subscribed_list/7,
@@ -26,23 +21,17 @@
 -spec subscribe_ranges(binary(), list_id(), [range()], guild_state()) ->
     {guild_state(), boolean(), [range()]}.
 subscribe_ranges(SessionId, ListId, Ranges, State) ->
-    subscribe_ranges(SessionId, ListId, Ranges, false, State).
-
--spec subscribe_ranges(binary(), list_id(), [range()], boolean(), guild_state()) ->
-    {guild_state(), boolean(), [range()]}.
-subscribe_ranges(SessionId, ListId, Ranges, Force, State) ->
     case valid_list_id(ListId) of
         true ->
             NormalizedRanges = guild_member_list:normalize_ranges(Ranges),
             SubsTab = maps:get(member_list_subscriptions, State),
-            {OldRanges, ShouldSync} = guild_member_list_subs:subscribe(
-                SessionId, ListId, NormalizedRanges, Force, SubsTab
-            ),
+            {OldRanges, ShouldSync} =
+                guild_member_list_subs:subscribe(SessionId, ListId, NormalizedRanges, SubsTab),
             StateWithStore = maybe_ensure_store(ListId, SubsTab, State),
             StateExclusive = enforce_single_session_list(
                 SessionId, ListId, NormalizedRanges, SubsTab, StateWithStore
             ),
-            RangesToSync = compute_ranges_to_sync(NormalizedRanges, OldRanges, ShouldSync, Force),
+            RangesToSync = compute_ranges_to_sync(NormalizedRanges, OldRanges, ShouldSync),
             ShouldActuallySync = ShouldSync andalso RangesToSync =/= [],
             {StateExclusive, ShouldActuallySync, RangesToSync};
         false ->
@@ -193,12 +182,6 @@ ensure_channel_engine_for_subs(ListId, SubsTab, State) ->
         false -> State
     end.
 
--spec compute_ranges_to_sync([range()], [range()], boolean(), boolean()) -> [range()].
-compute_ranges_to_sync(NormalizedRanges, _OldRanges, _ShouldSync, true) ->
-    NormalizedRanges;
-compute_ranges_to_sync(NormalizedRanges, OldRanges, ShouldSync, false) ->
-    compute_ranges_to_sync(NormalizedRanges, OldRanges, ShouldSync).
-
 -spec compute_ranges_to_sync([range()], [range()], boolean()) -> [range()].
 compute_ranges_to_sync(NormalizedRanges, _OldRanges, false) ->
     NormalizedRanges;
@@ -316,14 +299,3 @@ list_channel_id(ListId) when is_binary(ListId) ->
     end;
 list_channel_id(_) ->
     undefined.
-
--ifdef(TEST).
-
-compute_ranges_to_sync_dedups_unchanged_ranges_test() ->
-    ?assertEqual([], compute_ranges_to_sync([{0, 99}], [{0, 99}], true)),
-    ?assertEqual([], compute_ranges_to_sync([{0, 99}], [{0, 99}], true, false)).
-
-compute_ranges_to_sync_force_returns_full_ranges_test() ->
-    ?assertEqual([{0, 99}], compute_ranges_to_sync([{0, 99}], [{0, 99}], true, true)).
-
--endif.
