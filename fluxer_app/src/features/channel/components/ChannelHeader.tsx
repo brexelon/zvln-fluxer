@@ -32,6 +32,7 @@ import {CallButtons} from '@app/features/channel/components/channel_header_compo
 import {ChannelHeaderIcon} from '@app/features/channel/components/channel_header_components/ChannelHeaderIcon';
 import {ChannelNotificationSettingsButton} from '@app/features/channel/components/channel_header_components/ChannelNotificationSettingsButton';
 import {ChannelPinsButton} from '@app/features/channel/components/channel_header_components/ChannelPinsButton';
+import {ThreadsButton} from '@app/features/channel/components/channel_header_components/ThreadsButton';
 import {UpdaterIcon} from '@app/features/channel/components/channel_header_components/UpdaterIcon';
 import {InboxButton, StaffToolsButton} from '@app/features/channel/components/channel_header_components/UtilityButtons';
 import {useChannelSearchState} from '@app/features/channel/components/channel_view/useChannelSearchState';
@@ -908,6 +909,9 @@ export const ChannelHeader = observer(
 										/>
 									</button>
 								</FocusRing>
+							)}
+							{channel && isGuildChannel && !isMobile && !isPersonalNotes && (
+								<ThreadsButton channel={channel} data-flx="channel.channel-header.threads-button" />
 							)}
 							{channel && isGuildChannel && !isMobile && !isPersonalNotes && (
 								<ChannelNotificationSettingsButton

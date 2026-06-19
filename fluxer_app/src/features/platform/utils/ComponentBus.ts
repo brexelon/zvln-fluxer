@@ -38,6 +38,7 @@ export type ComponentActionType =
 	| 'TEXTAREA_AUTOCOMPLETE_CHANGED'
 	| 'TEXTAREA_SEND_VOICE_MESSAGE'
 	| 'TEXTAREA_UPLOAD_FILE'
+	| 'THREADS_OPEN'
 	| 'USER_SETTINGS_TAB_SELECT';
 type ComponentDispatchEvents = {
 	[K in ComponentActionType]: (...args: Array<unknown>) => unknown;
