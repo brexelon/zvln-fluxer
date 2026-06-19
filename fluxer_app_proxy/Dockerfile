@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ARG RUST_VERSION=1.93.0
 ENV RUSTUP_HOME=/usr/local/rustup \
 	CARGO_HOME=/usr/local/cargo \
+	CARGO_NET_RETRY=10 \
+	CARGO_HTTP_MULTIPLEXING=false \
 	PATH=/usr/local/cargo/bin:$PATH
 RUN set -eux; \
 	curl --retry 3 --retry-all-errors --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
@@ -89,6 +91,9 @@ FROM rust:1-bookworm AS rust-builder
 ARG FLUXER_APP_PROXY_TIME_FREEZE_ENABLED="true"
 
 WORKDIR /usr/src/app
+
+ENV CARGO_NET_RETRY=10 \
+	CARGO_HTTP_MULTIPLEXING=false
 
 COPY Cargo.lock ./
 COPY fluxer_common/ fluxer_common/
