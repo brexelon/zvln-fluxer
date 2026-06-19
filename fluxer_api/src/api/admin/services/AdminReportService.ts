@@ -141,6 +141,26 @@ export class AdminReportService {
 		};
 	}
 
+	async deleteReport(reportId: ReportID, adminUserId: UserID, auditLogReason: string | null) {
+		const {reportService, auditService} = this.deps;
+		const deletedReport = await reportService.deleteReport(reportId);
+		await auditService.createAuditLog({
+			adminUserId,
+			targetType: 'report',
+			targetId: BigInt(reportId),
+			action: 'delete_report',
+			auditLogReason,
+			metadata: new Map([
+				['report_id', reportId.toString()],
+				['report_type', deletedReport.reportType.toString()],
+			]),
+		});
+		return {
+			report_id: deletedReport.reportId.toString(),
+			deleted: true,
+		};
+	}
+
 	private async sendResolvedReportSystemDm({
 		reporter,
 		reportId,

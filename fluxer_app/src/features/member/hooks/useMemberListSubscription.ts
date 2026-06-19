@@ -66,6 +66,10 @@ export function useMemberListSubscription({
 	const lastGatewayReadyRef = useRef(GatewayConnection.isReady);
 	const hadChannelListRef = useRef(MemberSidebar.getList(guildId, channelId) !== undefined);
 	const retryTimerRef = useRef<number | null>(null);
+	const resyncBaselineVersionRef = useRef<number | null>(null);
+	const retryResumeGenerationRef = useRef(GatewayConnection.resumeGeneration);
+	const retrySessionVersionRef = useRef(MemberSidebar.sessionVersion);
+	const retryGatewayReadyRef = useRef(GatewayConnection.isReady);
 	const ownerIdRef = useRef(createMemberListSubscriptionOwnerId());
 	const ownerId = ownerIdRef.current;
 	const readSubscriptionModel = useCallback(
@@ -82,6 +86,14 @@ export function useMemberListSubscription({
 			retryTimerRef.current = null;
 		}
 	}, []);
+	const isMemberListFresh = useCallback(() => {
+		const baseline = resyncBaselineVersionRef.current;
+		if (baseline == null) {
+			const list = MemberSidebar.getList(guildId, channelId);
+			return list != null && list.items.size > 0;
+		}
+		return MemberSidebar.getListUpdateVersion(guildId, channelId) > baseline;
+	}, [guildId, channelId]);
 	const attemptSubscribe = useCallback(
 		(ranges: MemberListRanges, forceSubscriptionUpdate = false) => {
 			const normalizedRanges = normalizeMemberListRanges(ranges);
@@ -110,6 +122,12 @@ export function useMemberListSubscription({
 				return;
 			}
 			MemberSidebar.subscribeToChannel(guildId, channelId, normalizedRanges, forceSubscriptionUpdate, ownerId);
+			if (forceSubscriptionUpdate) {
+				// A forced (re)subscribe must be confirmed by a fresh SYNC. Capture the
+				// current update version as a baseline so cached members don't make the
+				// retry loop conclude the subscription succeeded.
+				resyncBaselineVersionRef.current = MemberSidebar.getListUpdateVersion(guildId, channelId);
+			}
 			sendSubscriptionEvent({
 				type: 'memberListSubscription.subscriptionApplied',
 				ranges: normalizedRanges,
@@ -151,6 +169,7 @@ export function useMemberListSubscription({
 	const clearSubscription = useCallback(
 		(updateGateway: boolean) => {
 			clearRetryTimer();
+			resyncBaselineVersionRef.current = null;
 			const wasSubscribed = readSubscriptionModel().isSubscribed;
 			const ownsSubscription = MemberSidebar.isActiveMemberListSubscriptionOwner(guildId, channelId, ownerId);
 			const hasLocalSubscription = ownsSubscription && MemberSidebar.getSubscribedRanges(guildId, channelId).length > 0;
@@ -173,6 +192,7 @@ export function useMemberListSubscription({
 	}, [clearSubscription]);
 	const pauseSubscription = useCallback(() => {
 		clearRetryTimer();
+		resyncBaselineVersionRef.current = null;
 		const model = readSubscriptionModel();
 		const ownsSubscription = MemberSidebar.isActiveMemberListSubscriptionOwner(guildId, channelId, ownerId);
 		const hasLocalSubscription = ownsSubscription && MemberSidebar.getSubscribedRanges(guildId, channelId).length > 0;
@@ -195,6 +215,10 @@ export function useMemberListSubscription({
 		lastSessionVersionRef.current = MemberSidebar.sessionVersion;
 		lastGatewayReadyRef.current = GatewayConnection.isReady;
 		hadChannelListRef.current = MemberSidebar.getList(guildId, channelId) !== undefined;
+		resyncBaselineVersionRef.current = null;
+		retryResumeGenerationRef.current = GatewayConnection.resumeGeneration;
+		retrySessionVersionRef.current = MemberSidebar.sessionVersion;
+		retryGatewayReadyRef.current = GatewayConnection.isReady;
 		clearRetryTimer();
 	}, [guildId, channelId, clearRetryTimer, sendSubscriptionEvent]);
 	useEffect(() => {
@@ -305,8 +329,8 @@ export function useMemberListSubscription({
 				if (!MemberSidebar.isActiveMemberListSubscriptionOwner(guildId, channelId, ownerId)) {
 					return;
 				}
-				const list = MemberSidebar.getList(guildId, channelId);
-				if (list && list.items.size > 0) {
+				if (isMemberListFresh()) {
+					resyncBaselineVersionRef.current = null;
 					sendSubscriptionEvent({type: 'memberListSubscription.retrySucceeded'});
 					return;
 				}
@@ -315,14 +339,41 @@ export function useMemberListSubscription({
 				scheduleRetry();
 			}, retryDelayMs);
 		};
+		const invalidateOnResync = () => {
+			// A resume/reconnect/session change can silently drop the previous
+			// member-list subscription. Treat the cached list as unconfirmed so the
+			// retry loop re-verifies it via a fresh SYNC instead of trusting stale
+			// members that are still in the cache.
+			const resumeGeneration = GatewayConnection.resumeGeneration;
+			const sessionVersion = MemberSidebar.sessionVersion;
+			const isReady = GatewayConnection.isReady;
+			const readyRose = isReady && !retryGatewayReadyRef.current;
+			const resynced =
+				resumeGeneration !== retryResumeGenerationRef.current ||
+				sessionVersion !== retrySessionVersionRef.current ||
+				readyRose;
+			retryResumeGenerationRef.current = resumeGeneration;
+			retrySessionVersionRef.current = sessionVersion;
+			retryGatewayReadyRef.current = isReady;
+			if (resynced) {
+				resyncBaselineVersionRef.current = MemberSidebar.getListUpdateVersion(guildId, channelId);
+			}
+		};
 		const disposeRetryReaction = reaction(
 			() => {
 				const list = MemberSidebar.getList(guildId, channelId);
-				return list != null && list.items.size > 0;
+				const itemCount = list != null ? list.items.size : 0;
+				const updateVersion = MemberSidebar.getListUpdateVersion(guildId, channelId);
+				const resumeGeneration = GatewayConnection.resumeGeneration;
+				const sessionVersion = MemberSidebar.sessionVersion;
+				const isReady = GatewayConnection.isReady ? 1 : 0;
+				return `${itemCount}:${updateVersion}:${resumeGeneration}:${sessionVersion}:${isReady}`;
 			},
-			(hasData) => {
-				if (hasData) {
+			() => {
+				invalidateOnResync();
+				if (isMemberListFresh()) {
 					clearRetryTimer();
+					resyncBaselineVersionRef.current = null;
 					sendSubscriptionEvent({type: 'memberListSubscription.retrySucceeded'});
 				} else if (MemberSidebar.isActiveMemberListSubscriptionOwner(guildId, channelId, ownerId)) {
 					scheduleRetry();
@@ -343,6 +394,7 @@ export function useMemberListSubscription({
 		isWindowFocused,
 		attemptSubscribe,
 		clearRetryTimer,
+		isMemberListFresh,
 		ownerId,
 		readSubscriptionModel,
 		sendSubscriptionEvent,

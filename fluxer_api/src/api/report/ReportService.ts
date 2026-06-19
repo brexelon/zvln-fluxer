@@ -830,6 +830,16 @@ export class ReportService {
 		return report;
 	}
 
+	async deleteReport(reportId: ReportID): Promise<IARSubmission> {
+		const report = await this.reportRepository.deleteReport(reportId);
+		if (this.reportSearchService && 'deleteReport' in this.reportSearchService) {
+			await this.reportSearchService.deleteReport(reportId).catch((error) => {
+				Logger.error({error, reportId}, 'Failed to remove report from search index');
+			});
+		}
+		return report;
+	}
+
 	private async gatherMessageContext(
 		channelId: ChannelID,
 		targetMessageId: MessageID,
