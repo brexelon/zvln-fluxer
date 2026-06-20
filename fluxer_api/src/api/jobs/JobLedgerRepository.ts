@@ -110,8 +110,34 @@ export class JobLedgerRepository extends IJobLedgerRepository {
 		await upsertOne(JobsById.patchByPk({job_id: jobId}, {jet_stream_seq: Db.set(seq)}));
 	}
 
+	private async findJobListingRow(
+		jobId: bigint,
+		maxLookbackDays = 14,
+	): Promise<Pick<JobByDayBucketRow, 'created_at' | 'task_type' | 'status' | 'requested_by_user_id'> | null> {
+		const activeRow = await fetchOne<JobActiveRow>(
+			JobsActive.select({where: JobsActive.where.eq('job_id')}).bind({job_id: jobId}),
+		);
+		if (activeRow) return activeRow;
+		for (let dayOffset = 0; dayOffset <= maxLookbackDays; dayOffset++) {
+			const bucketDate = new Date();
+			bucketDate.setUTCDate(bucketDate.getUTCDate() - dayOffset);
+			const bucketDay = bucketDayFor(bucketDate);
+			const rows = await fetchMany<JobByDayBucketRow>(
+				JobsByDayBucket.select({where: JobsByDayBucket.where.eq('bucket_day')}).bind({bucket_day: bucketDay}),
+			);
+			const match = rows.find((row) => row.job_id === jobId);
+			if (match) return match;
+		}
+		return null;
+	}
+
 	async getJob(jobId: bigint): Promise<JobByIdRow | null> {
-		return fetchOne<JobByIdRow>(FETCH_JOB_BY_ID_QUERY.bind({job_id: jobId}));
+		const fullRow = await fetchOne<JobByIdRow>(FETCH_JOB_BY_ID_QUERY.bind({job_id: jobId}));
+		if (!fullRow) return null;
+		if (fullRow.created_at && fullRow.task_type) return fullRow;
+		const listingRow = await this.findJobListingRow(jobId);
+		if (!listingRow) return null;
+		return mergeJobListingRow(fullRow, listingRow);
 	}
 
 	async markRunning(jobId: bigint, lane: string): Promise<void> {

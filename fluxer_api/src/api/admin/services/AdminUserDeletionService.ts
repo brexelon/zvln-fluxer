@@ -210,6 +210,14 @@ export class AdminUserDeletionService {
 			userRepository,
 			deletionQueue: this.deps.kvDeletionQueue,
 		});
+		await this.enqueueImmediateUserDeletion({
+			userId,
+			pendingDeletionAt,
+			deletionReasonCode: data.reason_code,
+			adminUserId,
+			auditLogReason,
+			userRepository,
+		});
 		await AuthSession.terminateAllUserSessions(this.deps.apiContext, userId);
 		const {stripe, billingRepository} = this.deps;
 		if (user.stripeSubscriptionId && stripe) {
@@ -403,6 +411,39 @@ export class AdminUserDeletionService {
 			successful,
 			failed,
 		};
+	}
+
+	private async enqueueImmediateUserDeletion(params: {
+		userId: UserID;
+		pendingDeletionAt: Date;
+		deletionReasonCode: number;
+		adminUserId: UserID;
+		auditLogReason: string | null;
+		userRepository: AdminUserDeletionServiceDeps['apiContext']['services']['users'];
+	}): Promise<void> {
+		const {userId, pendingDeletionAt, deletionReasonCode, adminUserId, auditLogReason, userRepository} = params;
+		const {worker: workerService} = this.deps.apiContext.services;
+		try {
+			await workerService.addJob(
+				'userProcessPendingDeletion',
+				{
+					userId: userId.toString(),
+					deletionReasonCode,
+				},
+				{
+					requestedByUserId: adminUserId,
+					...(auditLogReason && {auditLogReason}),
+				},
+			);
+			await this.deps.kvDeletionQueue.removeFromQueue(userId);
+			await userRepository.removePendingDeletion(userId, pendingDeletionAt);
+		} catch (error) {
+			Logger.error(
+				{error, userId: userId.toString()},
+				'Failed to enqueue immediate user deletion worker job; KV queue will retry on next cron run',
+			);
+			throw error;
+		}
 	}
 
 	private async banIdentifiersForScheduledDeletion(params: {
