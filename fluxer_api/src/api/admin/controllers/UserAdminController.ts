@@ -8,6 +8,7 @@ import {
 	ChangeDobRequest,
 	DeleteAccountImmediatelyRequest,
 	DeleteAllUserDataRequest,
+	DeleteAllUserDataResponse,
 	ChangeEmailRequest,
 	ChangeUsernameRequest,
 	ClearUserFieldsRequest,
@@ -657,12 +658,12 @@ export function UserAdminController(app: HonoApp) {
 		OpenAPI({
 			operationId: 'delete_all_user_data',
 			summary: 'Delete all user data',
-			responseSchema: UserMutationResponse,
+			responseSchema: DeleteAllUserDataResponse,
 			statusCode: 200,
 			security: 'adminApiKey',
 			tags: 'Admin',
 			description:
-				'Permanently purges all of a user\'s associated data from the database by running the full account deletion pipeline immediately. Creates an audit log entry. Requires USER_DELETE permission.',
+				'Permanently removes a user and all associated data from the database, including their profile. Does not create deleted-user placeholder records. Creates an audit log entry. Requires USER_DELETE permission.',
 		}),
 		async (ctx) => {
 			const adminService = ctx.get('adminService');

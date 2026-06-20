@@ -184,6 +184,10 @@ export class UserRepository implements IUserRepositoryAggregate {
 		return this.accountRepo.deleteUserSecondaryIndices(userId);
 	}
 
+	async deleteUser(userId: UserID): Promise<void> {
+		return this.accountRepo.deleteUser(userId);
+	}
+
 	async removeFromAllGuilds(userId: UserID): Promise<void> {
 		return this.accountRepo.removeFromAllGuilds(userId);
 	}

@@ -109,7 +109,7 @@ fn delete_immediately_card(base: &str, user: &AdminUser, csrf_token: &str) -> Ma
                     hx-target="#flash-container"
                     hx-swap="none"
                     hx-push-url="false"
-                    onsubmit=(format!("return confirm('{}');", confirm_message.replace('\'', "\\'"))) {
+                    hx-confirm=(confirm_message) {
                     (csrf_input(csrf_token))
                     div class="space-y-3" {
                         (form_label("Reason"))
@@ -157,8 +157,8 @@ fn delete_all_user_data_card(base: &str, user: &AdminUser, csrf_token: &str) -> 
         (card_with_header("Delete All User Data", html! {
             div class="space-y-4" {
                 p class="text-sm text-neutral-600" {
-                    "Run the full account deletion pipeline now and purge all of this user's associated data from the database. \
-                     Use this when you need to force-remove stored user data immediately."
+                    "Permanently remove this user and all associated data from the database, including their profile. \
+                     No deleted-user placeholder records are created. This action cannot be undone."
                 }
                 form method="post"
                     action=(action_url)
@@ -166,7 +166,7 @@ fn delete_all_user_data_card(base: &str, user: &AdminUser, csrf_token: &str) -> 
                     hx-target="#flash-container"
                     hx-swap="none"
                     hx-push-url="false"
-                    onsubmit=(format!("return confirm('{}');", confirm_message.replace('\'', "\\'"))) {
+                    hx-confirm=(confirm_message) {
                     (csrf_input(csrf_token))
                     (form_label("Private Reason (optional)"))
                     input type="text" name="private_reason"

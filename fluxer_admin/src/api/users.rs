@@ -507,14 +507,12 @@ impl AdminApiClient {
         &self,
         user_id: &str,
         private_reason: Option<&str>,
-    ) -> ApiResult<AdminUser> {
+    ) -> ApiResult<()> {
         let body = serde_json::json!({
             "user_id": user_id,
         });
-        let resp: UserMutationResponse = self
-            .post_typed_with_reason("/admin/users/delete-all-user-data", &body, private_reason)
-            .await?;
-        Ok(resp.user)
+        self.post_void_with_reason("/admin/users/delete-all-user-data", Some(&body), private_reason)
+            .await
     }
 
     pub async fn cancel_deletion(&self, user_id: &str) -> ApiResult<AdminUser> {

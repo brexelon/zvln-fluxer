@@ -45,6 +45,7 @@ export interface IUserAccountRepository {
 	isUserPendingDeletion(userId: UserID, deletionDate: string): Promise<boolean>;
 	scheduleDeletion(userId: UserID, pendingDeletionAt: Date, deletionReasonCode: number): Promise<void>;
 	deleteUserSecondaryIndices(userId: UserID): Promise<void>;
+	deleteUser(userId: UserID): Promise<void>;
 	removeFromAllGuilds(userId: UserID): Promise<void>;
 	updateLastActiveAt(params: {userId: UserID; lastActiveAt: Date; lastActiveIp?: string}): Promise<void>;
 	updateSubscriptionStatus(

@@ -72,6 +72,10 @@ export class UserAccountRepository implements IUserAccountRepository {
 		return this.accountRepo.deleteUserSecondaryIndices(userId);
 	}
 
+	async deleteUser(userId: UserID): Promise<void> {
+		return this.accountRepo.deleteUser(userId);
+	}
+
 	async findByEmail(email: string): Promise<User | null> {
 		return this.lookupRepo.findByEmail(email);
 	}

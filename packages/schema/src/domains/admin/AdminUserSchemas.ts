@@ -362,6 +362,12 @@ export const DeleteAllUserDataRequest = z.object({
 
 export type DeleteAllUserDataRequest = z.infer<typeof DeleteAllUserDataRequest>;
 
+export const DeleteAllUserDataResponse = z.object({
+	deleted: z.literal(true).describe('Indicates the user and all associated data were permanently removed'),
+});
+
+export type DeleteAllUserDataResponse = z.infer<typeof DeleteAllUserDataResponse>;
+
 export const SetUserAclsRequest = z.object({
 	user_id: SnowflakeType.describe('ID of the user to set ACLs for'),
 	acls: z.array(createStringType(1, 64)).max(100).describe('List of access control permissions to assign'),

@@ -157,6 +157,17 @@ export class UserAccountRepository {
 		);
 	}
 
+	async deleteUser(userId: UserID): Promise<void> {
+		const user = await this.findUnique(userId);
+		if (!user) return;
+		if (user.email) {
+			await this.emailOwnershipRepo.releaseEmail(user.email, userId);
+		}
+		await this.deleteUserSecondaryIndices(userId);
+		await this.searchRepo.deleteUser(userId);
+		await this.dataRepo.deleteUser(userId);
+	}
+
 	async updateLastActiveAt(params: {userId: UserID; lastActiveAt: Date; lastActiveIp?: string}): Promise<void> {
 		const activityUpdate = await this.dataRepo.updateLastActiveAt(params);
 		if (params.lastActiveIp !== undefined) {

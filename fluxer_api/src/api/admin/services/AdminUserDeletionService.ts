@@ -24,7 +24,7 @@ import {getReportSearchService} from '../../SearchFactory';
 import {clearPendingDeletion, reschedulePendingDeletion} from '../../user/services/PendingDeletionCoordinator';
 import {mapUserToAdminResponse} from '../models/UserTypes';
 import {
-	processUserDeletion,
+	purgeAllUserDataFromDatabase,
 	resolveUserDeletionDependencies,
 } from '../../user/services/UserDeletionService';
 import {createUserCacheService} from '../../middleware/ServiceSingletons';
@@ -305,9 +305,9 @@ export class AdminUserDeletionService {
 		data: DeleteAllUserDataRequest,
 		adminUserId: UserID,
 		auditLogReason: string | null,
-		acls: ReadonlySet<string>,
+		_acls: ReadonlySet<string>,
 	) {
-		const {users: userRepository, cache: cacheService, snowflake, worker} = this.deps.apiContext.services;
+		const {users: userRepository, snowflake, worker} = this.deps.apiContext.services;
 		const {auditService} = this.deps;
 		const userId = createUserID(data.user_id);
 		const user = await userRepository.findUnique(userId);
@@ -315,9 +315,8 @@ export class AdminUserDeletionService {
 			throw new UnknownUserError();
 		}
 		await AuthSession.terminateAllUserSessions(this.deps.apiContext, userId);
-		await processUserDeletion(
+		await purgeAllUserDataFromDatabase(
 			userId,
-			user.deletionReasonCode ?? DeletionReasons.OTHER,
 			resolveUserDeletionDependencies({
 				userCacheService: createUserCacheService(),
 				snowflakeService: snowflake,
@@ -333,7 +332,6 @@ export class AdminUserDeletionService {
 				deletionQueue: this.deps.kvDeletionQueue,
 			});
 		}
-		const updatedUser = (await userRepository.findUnique(userId)) ?? user;
 		await auditService.createAuditLog({
 			adminUserId,
 			targetType: 'user',
@@ -343,7 +341,7 @@ export class AdminUserDeletionService {
 			metadata: new Map(),
 		});
 		return {
-			user: await mapUserToAdminResponse(updatedUser, cacheService, acls),
+			deleted: true as const,
 		};
 	}
 
