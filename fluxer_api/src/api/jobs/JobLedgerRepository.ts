@@ -256,9 +256,11 @@ export class JobLedgerRepository extends IJobLedgerRepository {
 			const remaining = limit - collected.length + 1;
 			const useCursor = dayOffset === 0 && cursor !== null;
 			let bucketRows: Array<JobByDayBucketRow>;
+			const orderBy = {col: 'created_at' as const, direction: 'DESC' as const};
 			if (useCursor && cursor) {
 				const query = JobsByDayBucket.select({
 					where: [JobsByDayBucket.where.eq('bucket_day'), JobsByDayBucket.where.lt('created_at')],
+					orderBy,
 					limit: remaining,
 				});
 				bucketRows = await fetchMany<JobByDayBucketRow>(
@@ -267,6 +269,7 @@ export class JobLedgerRepository extends IJobLedgerRepository {
 			} else {
 				const query = JobsByDayBucket.select({
 					where: JobsByDayBucket.where.eq('bucket_day'),
+					orderBy,
 					limit: remaining,
 				});
 				bucketRows = await fetchMany<JobByDayBucketRow>(query.bind({bucket_day: bucketDay}));
