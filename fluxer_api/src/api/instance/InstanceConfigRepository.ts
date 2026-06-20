@@ -297,7 +297,6 @@ type InstanceRegistrationUrlPublic = Omit<InstanceRegistrationUrl, 'code_hash'>;
 interface InstancePendingRegistration {
 	user_id: string;
 	username: string;
-	discriminator: number;
 	global_name: string | null;
 	email: string | null;
 	requested_at: string;
@@ -723,7 +722,6 @@ function normalizePendingRegistration(value: unknown): InstancePendingRegistrati
 	return {
 		user_id: value.user_id,
 		username: value.username,
-		discriminator: typeof value.discriminator === 'number' ? value.discriminator : 0,
 		global_name: normalizeNullableString(value.global_name),
 		email: normalizeNullableString(value.email),
 		requested_at: requestedAt,

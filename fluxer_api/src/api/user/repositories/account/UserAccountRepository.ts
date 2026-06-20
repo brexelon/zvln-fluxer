@@ -150,7 +150,6 @@ export class UserAccountRepository {
 		await this.indexRepo.deleteIndices(
 			userId,
 			user.username,
-			user.discriminator,
 			user.email,
 			user.stripeCustomerId,
 			user.stripeSubscriptionId,

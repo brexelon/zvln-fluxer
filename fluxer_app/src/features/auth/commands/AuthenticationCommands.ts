@@ -82,7 +82,6 @@ export function authResponseUserToUserData(user?: AuthResponseUser | null): User
 	}
 	const userData: UserData = {
 		username: user.username,
-		discriminator: user.discriminator,
 		globalName: user.global_name,
 		avatar: user.avatar,
 	};

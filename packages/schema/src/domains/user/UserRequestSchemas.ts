@@ -52,7 +52,6 @@ import {
 	UserNotificationSettingsSchema,
 } from '@fluxer/schema/src/primitives/UserSettingsValidators';
 import {
-	DiscriminatorType,
 	EmailType,
 	GlobalNameType,
 	PasswordType,
@@ -63,7 +62,6 @@ import {z} from 'zod';
 export const UserUpdateRequest = z
 	.object({
 		username: UsernameType.describe('The username for the account (1-32 characters)'),
-		discriminator: DiscriminatorType.describe('The 4-digit discriminator tag'),
 		global_name: GlobalNameType.nullish().describe('The display name shown to other users'),
 		email: EmailType.describe('The email address for the account'),
 		new_password: PasswordType.describe('The new password to set'),
@@ -187,7 +185,6 @@ export type PasswordChangeCompleteRequest = z.infer<typeof PasswordChangeComplet
 
 export const FriendRequestByTagRequest = z.object({
 	username: UsernameType.describe('Username of the user to send friend request'),
-	discriminator: DiscriminatorType.describe('Discriminator tag of the user'),
 });
 
 export type FriendRequestByTagRequest = z.infer<typeof FriendRequestByTagRequest>;
@@ -453,7 +450,6 @@ export type EmptyBodyRequest = z.infer<typeof EmptyBodyRequest>;
 
 export const UserTagCheckQueryRequest = z.object({
 	username: UsernameType.describe('The username to check'),
-	discriminator: DiscriminatorType.describe('The discriminator to check'),
 });
 
 export type UserTagCheckQueryRequest = z.infer<typeof UserTagCheckQueryRequest>;

@@ -116,7 +116,7 @@ function getTransformedMember(memberRecord: GuildMember, guildId?: string): Tran
 	const user = memberRecord.user;
 	const member: TransformedMember = {
 		id: user.id,
-		username: `${user.username}#${user.discriminator}`,
+		username: user.username,
 		guildIds: [],
 	};
 	if (user.bot) {
@@ -364,7 +364,7 @@ class MemberSearch {
 		if (!worker) return;
 		const user = Users.getUser(userId);
 		if (!user) return;
-		const username = `${user.username}#${user.discriminator}`;
+		const username = user.username;
 		updateMembers([{id: userId, username, isFriend}]);
 	}
 

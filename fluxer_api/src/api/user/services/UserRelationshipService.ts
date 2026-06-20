@@ -10,7 +10,6 @@ import {CannotBlockSystemUserError} from '@fluxer/errors/src/domains/user/Cannot
 import {CannotSendFriendRequestToBlockedUserError} from '@fluxer/errors/src/domains/user/CannotSendFriendRequestToBlockedUserError';
 import {CannotSendFriendRequestToSelfError} from '@fluxer/errors/src/domains/user/CannotSendFriendRequestToSelfError';
 import {FriendRequestBlockedError} from '@fluxer/errors/src/domains/user/FriendRequestBlockedError';
-import {InvalidDiscriminatorError} from '@fluxer/errors/src/domains/user/InvalidDiscriminatorError';
 import {MaxRelationshipsError} from '@fluxer/errors/src/domains/user/MaxRelationshipsError';
 import {NoUsersWithFluxertagError} from '@fluxer/errors/src/domains/user/NoUsersWithFluxertagError';
 import {UnclaimedAccountCannotAcceptFriendRequestsError} from '@fluxer/errors/src/domains/user/UnclaimedAccountCannotAcceptFriendRequestsError';
@@ -82,12 +81,8 @@ export class UserRelationshipService {
 		userCacheService: UserCacheService;
 		requestCache: RequestCache;
 	}): Promise<Relationship> {
-		const {username, discriminator} = data;
-		const discrimValue = discriminator;
-		if (!Number.isInteger(discrimValue) || discrimValue < 0 || discrimValue > 9999) {
-			throw new InvalidDiscriminatorError();
-		}
-		const targetUser = await this.userRepository.findByUsernameDiscriminator(username, discrimValue);
+		const {username} = data;
+		const targetUser = await this.userRepository.findByUsername(username.toLowerCase());
 		if (!targetUser) {
 			throw new NoUsersWithFluxertagError();
 		}

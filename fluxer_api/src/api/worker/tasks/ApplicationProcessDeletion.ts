@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import {
-	DELETED_USER_DISCRIMINATOR,
-	DELETED_USER_GLOBAL_NAME,
-	DELETED_USER_USERNAME,
-	UserFlags,
-} from '@fluxer/constants/src/UserConstants';
+import {DELETED_USER_GLOBAL_NAME, DELETED_USER_USERNAME, UserFlags} from '@fluxer/constants/src/UserConstants';
 import type {WorkerTaskHandler} from '@pkgs/worker/src/contracts/WorkerTask';
 import {z} from 'zod';
 import {applicationIdToUserId, createApplicationID, type GuildID} from '../../BrandedTypes';
@@ -65,7 +60,6 @@ const applicationProcessDeletion: WorkerTaskHandler = async (payload, helpers) =
 			{
 				username: DELETED_USER_USERNAME,
 				global_name: DELETED_USER_GLOBAL_NAME,
-				discriminator: DELETED_USER_DISCRIMINATOR,
 				flags: botUser.flags | UserFlags.DELETED,
 			},
 			botUser.toRow(),

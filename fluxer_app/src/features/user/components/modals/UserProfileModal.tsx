@@ -152,7 +152,7 @@ export const UserProfileModal: UserProfileModalComponent = observer(
 				new User({
 					id: userId,
 					username: userId,
-					discriminator: '0000',
+					discriminator: '0',
 					global_name: null,
 					avatar: null,
 					avatar_color: null,
@@ -340,7 +340,7 @@ export const UserProfileModal: UserProfileModalComponent = observer(
 			openReportUserModal({i18n, user: displayUser, guildId});
 		};
 		const handleCopyFluxerTag = () => {
-			TextCopyCommands.copy(i18n, `${displayUser.username}#${displayUser.discriminator}`, true);
+			TextCopyCommands.copy(i18n, displayUser.username, true);
 		};
 		const handleCopyUserId = () => {
 			TextCopyCommands.copy(i18n, displayUser.id, true);

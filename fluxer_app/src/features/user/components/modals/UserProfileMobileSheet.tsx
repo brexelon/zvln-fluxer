@@ -128,7 +128,7 @@ export const UserProfileMobileSheet: React.FC = observer(function UserProfileMob
 				? new User({
 						id: userId,
 						username: userId,
-						discriminator: '0000',
+						discriminator: '0',
 						global_name: null,
 						avatar: null,
 						avatar_color: null,
@@ -609,14 +609,6 @@ const UserProfileMobileSheetContent: React.FC<UserProfileMobileSheetContentProps
 													>
 														{displayName}
 													</span>
-													{isDisplayNameUsername && (
-														<span
-															className={styles.discriminator}
-															data-flx="user.user-profile-mobile-sheet.user-profile-mobile-sheet-content.discriminator"
-														>
-															{NicknameUtils.formatTagForStreamerMode(`#${user.discriminator}`)}
-														</span>
-													)}
 												</div>
 												<div
 													className={styles.tagBadgeRow}
@@ -627,7 +619,7 @@ const UserProfileMobileSheetContent: React.FC<UserProfileMobileSheetContentProps
 															className={styles.fullTag}
 															data-flx="user.user-profile-mobile-sheet.user-profile-mobile-sheet-content.full-tag"
 														>
-															{NicknameUtils.formatTagForStreamerMode(`${user.username}#${user.discriminator}`)}
+															{NicknameUtils.formatTagForStreamerMode(user.username)}
 														</span>
 													)}
 													<div

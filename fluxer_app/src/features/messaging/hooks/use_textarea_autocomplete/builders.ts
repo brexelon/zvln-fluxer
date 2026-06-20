@@ -80,17 +80,14 @@ export function filterDMUsers(
 	let matchedUsers: typeof users;
 	if (parsedQuery.hasTagSeparator) {
 		const usernameQueryLower = parsedQuery.usernameQuery.toLowerCase();
-		const tagQueryLower = parsedQuery.tagQuery?.toLowerCase() ?? '';
 		matchedUsers = users.filter((user) => {
 			const username = toLowerSearchText(user.username);
 			const display = toLowerSearchText(getUserDisplayName(user));
-			const discriminator = firstDisplayText(user.discriminator);
-			const matchesUsername =
+			return (
 				usernameQueryLower.length === 0 ||
 				username.startsWith(usernameQueryLower) ||
-				display.startsWith(usernameQueryLower);
-			const matchesTag = tagQueryLower.length === 0 || discriminator.startsWith(tagQueryLower);
-			return matchesUsername && matchesTag;
+				display.startsWith(usernameQueryLower)
+			);
 		});
 	} else if (trimmedUsername.length === 0) {
 		matchedUsers = users;
@@ -128,19 +125,16 @@ export function filterGuildMembers(
 	let matchedMembers: typeof filteredByAccess;
 	if (parsedQuery.hasTagSeparator) {
 		const usernameQueryLower = parsedQuery.usernameQuery.toLowerCase();
-		const tagQueryLower = parsedQuery.tagQuery?.toLowerCase() ?? '';
 		matchedMembers = filteredByAccess.filter((member) => {
 			const nick = toLowerSearchText(member.nick);
 			const username = toLowerSearchText(member.user?.username);
 			const display = toLowerSearchText(getMemberDisplayName(member));
-			const discriminator = firstDisplayText(member.user?.discriminator);
-			const matchesUsername =
+			return (
 				usernameQueryLower.length === 0 ||
 				username.startsWith(usernameQueryLower) ||
 				display.startsWith(usernameQueryLower) ||
-				nick.startsWith(usernameQueryLower);
-			const matchesTag = tagQueryLower.length === 0 || discriminator.startsWith(tagQueryLower);
-			return matchesUsername && matchesTag;
+				nick.startsWith(usernameQueryLower)
+			);
 		});
 	} else if (trimmedUsername.length === 0) {
 		matchedMembers = filteredByAccess;

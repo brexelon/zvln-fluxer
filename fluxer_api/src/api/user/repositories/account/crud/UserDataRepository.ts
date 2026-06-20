@@ -51,7 +51,6 @@ export class UserDataRepository {
 				...EMPTY_USER_ROW,
 				user_id: createUserID(FLUXER_BOT_USER_ID),
 				username: 'Fluxer',
-				discriminator: 0,
 				bot: true,
 				system: true,
 				flags: UserFlags.STAFF,
@@ -62,7 +61,6 @@ export class UserDataRepository {
 				...EMPTY_USER_ROW,
 				user_id: createUserID(DELETED_USER_ID),
 				username: 'DeletedUser',
-				discriminator: 0,
 				bot: false,
 				system: false,
 			});

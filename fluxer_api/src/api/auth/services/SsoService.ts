@@ -24,7 +24,6 @@ import {
 } from 'jose';
 import type {ApiContext} from '../../ApiContext';
 import type {UserID} from '../../BrandedTypes';
-import type {IDiscriminatorService} from '../../infrastructure/DiscriminatorService';
 import type {KVActivityTracker} from '../../infrastructure/KVActivityTracker';
 import {
 	type InstanceConfigRepository,
@@ -234,7 +233,6 @@ export class SsoService {
 	constructor(
 		private readonly apiContext: ApiContext,
 		private readonly instanceConfigRepository: InstanceConfigRepository,
-		private readonly discriminatorService: IDiscriminatorService,
 		private readonly kvActivityTracker: KVActivityTracker,
 	) {}
 
@@ -358,7 +356,6 @@ export class SsoService {
 			await this.instanceConfigRepository.addPendingRegistration({
 				user_id: user.id.toString(),
 				username: user.username,
-				discriminator: user.discriminator,
 				global_name: user.globalName,
 				email: user.email,
 				requested_at: new Date().toISOString(),
@@ -421,10 +418,13 @@ export class SsoService {
 		const {users, snowflake} = this.apiContext.services;
 		const userId = (await snowflake.generate()) as UserID;
 		const baseName = claims.name?.trim() || claims.email.split('@')[0] || generateRandomUsername();
-		const username = deriveUsernameFromDisplayName(baseName) ?? generateRandomUsername();
-		const discriminatorResult = await this.discriminatorService.generateDiscriminator({username});
-		if (!discriminatorResult.available) {
-			throw InputValidationError.fromCode('username', ValidationErrorCodes.SSO_UNABLE_TO_ALLOCATE_DISCRIMINATOR);
+		let username = deriveUsernameFromDisplayName(baseName) ?? generateRandomUsername();
+		if (!(await users.isUsernameAvailable(username))) {
+			let candidate = generateRandomUsername();
+			for (let i = 0; i < 10 && !(await users.isUsernameAvailable(candidate)); i++) {
+				candidate = generateRandomUsername();
+			}
+			username = candidate;
 		}
 		const now = new Date();
 		const traits = new Set<string>([
@@ -446,7 +446,6 @@ export class SsoService {
 		const userRow = {
 			user_id: userId,
 			username,
-			discriminator: discriminatorResult.discriminator,
 			global_name: globalName,
 			bot: false,
 			system: false,

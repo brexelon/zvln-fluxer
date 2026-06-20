@@ -314,6 +314,7 @@ import {
 	USER_BY_STRIPE_CUSTOMER_ID_COLUMNS,
 	USER_BY_STRIPE_SUBSCRIPTION_ID_COLUMNS,
 	USER_BY_USERNAME_COLUMNS,
+	USER_BY_USERNAME_V2_COLUMNS,
 	USER_COLUMNS,
 	USER_CONTACT_CHANGE_LOG_COLUMNS,
 	USER_DM_HISTORY_COLUMNS,
@@ -330,6 +331,7 @@ import {
 	type UserByStripeCustomerIdRow,
 	type UserByStripeSubscriptionIdRow,
 	type UserByUsernameRow,
+	type UserByUsernameV2Row,
 	type UserContactChangeLogRow,
 	type UserDmHistoryRow,
 	type UserEmailOwnerRow,
@@ -365,6 +367,11 @@ export const UserByUsername = defineTable<UserByUsernameRow, 'username' | 'discr
 	name: 'users_by_username',
 	columns: USER_BY_USERNAME_COLUMNS,
 	primaryKey: ['username', 'discriminator', 'user_id'],
+});
+export const UserByUsernameV2 = defineTable<UserByUsernameV2Row, 'username'>({
+	name: 'users_by_username_v2',
+	columns: USER_BY_USERNAME_V2_COLUMNS,
+	primaryKey: ['username'],
 });
 export const UserByEmail = defineTable<UserByEmailRow, 'email_lower' | 'user_id'>({
 	name: 'users_by_email',

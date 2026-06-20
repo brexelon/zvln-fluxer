@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import {
-	DELETED_USER_DISCRIMINATOR,
-	DELETED_USER_GLOBAL_NAME,
-	DELETED_USER_USERNAME,
-	UserFlags,
-} from '@fluxer/constants/src/UserConstants';
+import {DELETED_USER_GLOBAL_NAME, DELETED_USER_USERNAME, UserFlags} from '@fluxer/constants/src/UserConstants';
 import {createUserID, type UserID} from '../BrandedTypes';
 import type {IChannelRepository} from '../channel/IChannelRepository';
 import {MessageAnonymizationService} from '../channel/services/message/MessageAnonymizationService';
@@ -30,7 +25,6 @@ async function createDeletedMessageAuthorUser(params: {
 		...EMPTY_USER_ROW,
 		user_id: deletedUserId,
 		username: DELETED_USER_USERNAME,
-		discriminator: DELETED_USER_DISCRIMINATOR,
 		global_name: DELETED_USER_GLOBAL_NAME,
 		bot: false,
 		system: false,

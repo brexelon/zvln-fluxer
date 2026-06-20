@@ -20,7 +20,7 @@ import {
 	SnowflakeType,
 	withOpenApiType,
 } from '@fluxer/schema/src/primitives/SchemaPrimitives';
-import {DiscriminatorType, UsernameType} from '@fluxer/schema/src/primitives/UserValidators';
+import {UsernameType} from '@fluxer/schema/src/primitives/UserValidators';
 import {z} from 'zod';
 
 const RedirectURIString = createStringType(1).refine((value) => {
@@ -433,7 +433,6 @@ export type ApplicationUpdateRequest = z.infer<typeof ApplicationUpdateRequest>;
 
 export const BotProfileUpdateRequest = z.object({
 	username: UsernameType.optional().describe('The username of the bot'),
-	discriminator: DiscriminatorType.optional().describe('The discriminator of the bot'),
 	avatar: createBase64StringType(1, Math.ceil(AVATAR_MAX_SIZE * (4 / 3)))
 		.nullish()
 		.describe('The avatar image as base64'),

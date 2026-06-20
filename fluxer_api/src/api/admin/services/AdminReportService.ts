@@ -493,7 +493,7 @@ export class AdminReportService {
 			author_id: message.authorId.toString(),
 			author_username: message.authorUsername,
 			author_global_name: null,
-			author_discriminator: message.authorDiscriminator.toString().padStart(4, '0'),
+			author_discriminator: '0',
 			author_avatar: message.authorAvatarHash,
 			user_prior_ncmec_report_ids: priorReportsByAuthor.get(message.authorId.toString()) ?? [],
 		};
@@ -627,12 +627,11 @@ export class AdminReportService {
 		}
 		try {
 			const user = await this.deps.userCacheService.getUserPartialResponse(userId, requestCache);
-			const discriminator = user.discriminator?.padStart(4, '0') ?? '0000';
 			return {
-				tag: `${user.username}#${discriminator}`,
+				tag: user.username,
 				username: user.username,
 				global_name: user.global_name ?? null,
-				discriminator,
+				discriminator: '0',
 			};
 		} catch (error) {
 			Logger.warn({userId: userId.toString(), error}, 'Failed to resolve user tag for report');

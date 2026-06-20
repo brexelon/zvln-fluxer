@@ -3,7 +3,6 @@
 import {randomInt} from 'node:crypto';
 import {ChannelTypes, MessageTypes} from '@fluxer/constants/src/ChannelConstants';
 import {
-	DELETED_USER_DISCRIMINATOR,
 	DELETED_USER_GLOBAL_NAME,
 	DELETED_USER_USERNAME,
 	ProfileFieldPrivacyFlags,
@@ -20,7 +19,6 @@ import type {ChannelRepository} from '../../channel/ChannelRepository';
 import type {FavoriteMemeRepository} from '../../favorite_meme/FavoriteMemeRepository';
 import type {GuildRepository} from '../../guild/repositories/GuildRepository';
 import type {IPurgeQueue} from '../../infrastructure/BunnyPurgeQueue';
-import type {DiscriminatorService} from '../../infrastructure/DiscriminatorService';
 import type {IGatewayService} from '../../infrastructure/IGatewayService';
 import type {ISnowflakeService} from '../../infrastructure/ISnowflakeService';
 import type {IStorageService} from '../../infrastructure/IStorageService';
@@ -46,7 +44,6 @@ interface UserDeletionDependencies {
 	userCacheService: UserCacheService;
 	gatewayService: IGatewayService;
 	snowflakeService: ISnowflakeService;
-	discriminatorService: DiscriminatorService;
 	stripe: Stripe | null;
 	applicationRepository: ApplicationRepository;
 	workerService: IWorkerService<WorkerTaskName>;
@@ -140,7 +137,6 @@ export async function processUserDeletion(
 	await userRepository.create({
 		user_id: deletedUserId,
 		username: DELETED_USER_USERNAME,
-		discriminator: DELETED_USER_DISCRIMINATOR,
 		global_name: DELETED_USER_GLOBAL_NAME,
 		bot: false,
 		system: false,
@@ -436,7 +432,6 @@ export async function processUserDeletion(
 		userId,
 		{
 			username: DELETED_USER_USERNAME,
-			discriminator: DELETED_USER_DISCRIMINATOR,
 			global_name: DELETED_USER_GLOBAL_NAME,
 			email: null,
 			email_verified: false,

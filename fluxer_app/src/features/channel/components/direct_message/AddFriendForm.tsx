@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import {StatusSlate} from '@app/features/app/components/dialogs/shared/StatusSlate';
-import {EXAMPLE_FLUXER_TAG_FULL} from '@app/features/app/config/I18nDisplayConstants';
 import {openClaimAccountModal} from '@app/features/auth/components/modals/ClaimAccountModal';
 import styles from '@app/features/channel/components/direct_message/AddFriendForm.module.css';
 import {CLAIM_ACCOUNT_DESCRIPTOR, VERIFY_EMAIL_DESCRIPTOR} from '@app/features/i18n/utils/CommonMessageDescriptors';
@@ -28,11 +27,6 @@ import {useState} from 'react';
 const NO_USER_FOUND_WITH_THAT_USERNAME_DESCRIPTOR = msg({
 	message: 'No user found with that username.',
 	comment: 'Empty-state text in the channel and chat add friend form.',
-});
-const PLEASE_ENTER_A_VALID_USERNAME_DESCRIPTOR = msg({
-	message: 'Enter a valid username ({exampleFluxerTagFull}).',
-	comment:
-		'Description text in the channel and chat add friend form. Preserve {exampleFluxerTagFull}; it is inserted by code.',
 });
 const SEND_REQUEST_DESCRIPTOR = msg({
 	message: 'Send request',
@@ -97,13 +91,6 @@ export const AddFriendForm: React.FC<AddFriendFormProps> = observer(({onSuccess}
 			/>
 		);
 	}
-	const parseInput = (input: string): [string, string] => {
-		const parts = input['split']('#');
-		if (parts.length > 1) {
-			return [parts[0], parts.slice(1).join('#')];
-		}
-		return [input, '0000'];
-	};
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setInput(e.target.value);
 		if (resultStatus) {
@@ -118,21 +105,18 @@ export const AddFriendForm: React.FC<AddFriendFormProps> = observer(({onSuccess}
 		if (errorCode === APIErrorCodes.NO_USERS_WITH_FLUXERTAG_EXIST) {
 			return i18n._(NO_USER_FOUND_WITH_THAT_USERNAME_DESCRIPTOR);
 		}
-		if (errorCode === APIErrorCodes.DISCRIMINATOR_REQUIRED) {
-			return i18n._(PLEASE_ENTER_A_VALID_USERNAME_DESCRIPTOR, {exampleFluxerTagFull: EXAMPLE_FLUXER_TAG_FULL});
-		}
 		return getSendFriendRequestErrorMessage(i18n, errorCode, null);
 	};
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		const [username, discriminator] = parseInput(input);
-		if (!username || !discriminator || !/^\d{4}$/.test(discriminator)) {
+		const username = input.trim();
+		if (!username) {
 			setResultStatus('error');
 			setErrorCode(APIErrorCodes.NO_USERS_WITH_FLUXERTAG_EXIST);
 			return;
 		}
 		setIsLoading(true);
-		RelationshipCommands.sendFriendRequestByTag(username, discriminator)
+		RelationshipCommands.sendFriendRequestByTag(username)
 			.then(() => {
 				setIsLoading(false);
 				setResultStatus('success');
@@ -169,7 +153,7 @@ export const AddFriendForm: React.FC<AddFriendFormProps> = observer(({onSuccess}
 					type="text"
 					value={input}
 					onChange={handleInputChange}
-					placeholder={EXAMPLE_FLUXER_TAG_FULL}
+					placeholder="username"
 					className={clsx(
 						styles.input,
 						!isMobile && styles.inputDesktop,

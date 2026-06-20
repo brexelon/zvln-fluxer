@@ -300,7 +300,6 @@ const SwitchAccountsMenu = observer(
 						const isCurrent = account.userId === currentAccountId;
 						const avatarUrl = getAccountAvatarUrl(account);
 						const displayName = getAccountDisplayName(account, '???');
-						const discriminator = account.userData?.discriminator ?? '0000';
 						return (
 							<FocusRing
 								key={account.userId}
@@ -339,12 +338,6 @@ const SwitchAccountsMenu = observer(
 											data-flx="app.floating.user-area-popout.switch-accounts-menu.account-menu-tag"
 										>
 											{displayName}
-											<span
-												className={styles.accountMenuDiscriminator}
-												data-flx="app.floating.user-area-popout.switch-accounts-menu.account-menu-discriminator"
-											>
-												#{discriminator}
-											</span>
 										</span>
 										{isCurrent && (
 											<span
