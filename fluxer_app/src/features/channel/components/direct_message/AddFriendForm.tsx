@@ -28,6 +28,10 @@ const NO_USER_FOUND_WITH_THAT_USERNAME_DESCRIPTOR = msg({
 	message: 'No user found with that username.',
 	comment: 'Empty-state text in the channel and chat add friend form.',
 });
+const INVALID_USERNAME_FORMAT_DESCRIPTOR = msg({
+	message: 'Enter a valid username (e.g. jane.doe or john_smith).',
+	comment: 'Error shown when the entered username format is invalid in the add friend form.',
+});
 const SEND_REQUEST_DESCRIPTOR = msg({
 	message: 'Send request',
 	comment: 'Button or menu action label in the channel and chat add friend form. Keep it concise.',
@@ -105,6 +109,9 @@ export const AddFriendForm: React.FC<AddFriendFormProps> = observer(({onSuccess}
 		if (errorCode === APIErrorCodes.NO_USERS_WITH_FLUXERTAG_EXIST) {
 			return i18n._(NO_USER_FOUND_WITH_THAT_USERNAME_DESCRIPTOR);
 		}
+		if (errorCode === APIErrorCodes.INVALID_FORM_BODY) {
+			return i18n._(INVALID_USERNAME_FORMAT_DESCRIPTOR);
+		}
 		return getSendFriendRequestErrorMessage(i18n, errorCode, null);
 	};
 	const handleSubmit = (e: React.FormEvent) => {
@@ -113,6 +120,12 @@ export const AddFriendForm: React.FC<AddFriendFormProps> = observer(({onSuccess}
 		if (!username) {
 			setResultStatus('error');
 			setErrorCode(APIErrorCodes.NO_USERS_WITH_FLUXERTAG_EXIST);
+			return;
+		}
+		const normalized = username.toLowerCase();
+		if (!/^[a-z0-9_.]+$/.test(normalized) || /^[_.]|[_.]$|[_.]{2}/.test(normalized)) {
+			setResultStatus('error');
+			setErrorCode(APIErrorCodes.INVALID_FORM_BODY);
 			return;
 		}
 		setIsLoading(true);

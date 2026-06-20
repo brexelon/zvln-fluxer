@@ -6,6 +6,7 @@ import {
 	AdminUsersMeResponse,
 	CancelBulkMessageDeletionRequest,
 	ChangeDobRequest,
+	DeleteAccountImmediatelyRequest,
 	ChangeEmailRequest,
 	ChangeUsernameRequest,
 	ClearUserFieldsRequest,
@@ -609,6 +610,36 @@ export function UserAdminController(app: HonoApp) {
 			const adminUserAcls = ctx.get('adminUserAcls');
 			return ctx.json(
 				await adminService.userService.deletionService.cancelAccountDeletion(
+					ctx.req.valid('json'),
+					adminUserId,
+					auditLogReason,
+					adminUserAcls,
+				),
+			);
+		},
+	);
+	app.post(
+		'/admin/users/delete-account-immediately',
+		RateLimitMiddleware(RateLimitConfigs.ADMIN_USER_MODIFY),
+		requireAdminACL(AdminACLs.USER_DELETE),
+		Validator('json', DeleteAccountImmediatelyRequest),
+		OpenAPI({
+			operationId: 'delete_account_immediately',
+			summary: 'Delete account immediately',
+			responseSchema: UserMutationResponse,
+			statusCode: 200,
+			security: 'adminApiKey',
+			tags: 'Admin',
+			description:
+				'Permanently delete a user account without a grace period. Terminates all sessions, cancels subscription, bans identifiers, and queues deletion immediately. Creates audit log entry. Requires USER_DELETE permission.',
+		}),
+		async (ctx) => {
+			const adminService = ctx.get('adminService');
+			const adminUserId = ctx.get('adminUserId');
+			const auditLogReason = ctx.get('auditLogReason');
+			const adminUserAcls = ctx.get('adminUserAcls');
+			return ctx.json(
+				await adminService.userService.deletionService.deleteAccountImmediately(
 					ctx.req.valid('json'),
 					adminUserId,
 					auditLogReason,

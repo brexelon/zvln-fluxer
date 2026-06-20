@@ -63,11 +63,15 @@ pub fn moderation_tab(
     let base = &config.base_path;
     let can_delete_all_messages = acl::has_permission(admin_acls, acl::MESSAGE_DELETE_ALL);
     let can_shred_messages = acl::has_permission(admin_acls, acl::MESSAGE_SHRED);
+    let can_delete_user = acl::has_permission(admin_acls, acl::USER_DELETE);
     html! {
         div class="space-y-6" {
             div class="grid grid-cols-1 gap-6 md:grid-cols-2" {
                 (ban_actions_card(base, user, csrf_token))
                 (deletion_card(base, user, csrf_token))
+            }
+            @if can_delete_user {
+                (delete_immediately_card(base, user, csrf_token))
             }
             @if can_delete_all_messages {
                 (delete_all_messages_card(base, user, csrf_token, delete_all_messages_dry_run))
@@ -76,6 +80,109 @@ pub fn moderation_tab(
                 (message_shred_card(base, user, csrf_token, message_shred_job_id, message_shred_status))
             }
         }
+    }
+}
+
+fn delete_immediately_card(base: &str, user: &AdminUser, csrf_token: &str) -> Markup {
+    html! {
+        (card_with_header("Immediate Account Deletion", html! {
+            div class="space-y-4" {
+                div class="rounded-lg border border-red-200 bg-red-50 p-4" {
+                    p class="text-sm font-medium text-red-800" { "Warning: This action is irreversible." }
+                    p class="mt-1 text-sm text-red-700" {
+                        "This permanently deletes the account for "
+                        strong { "@" (user.username) }
+                        " immediately, without any grace period. All data will be queued for deletion at once."
+                    }
+                }
+                form method="post"
+                    id="delete-immediately-form"
+                    action={(base) "/users/" (user.id) "?action=delete_immediately&tab=moderation"} {
+                    (csrf_input(csrf_token))
+                    div class="space-y-3" {
+                        (form_label("Reason"))
+                        select name="reason_code"
+                            class="block w-full rounded-md border border-neutral-300 \
+                                   px-3 py-2 text-sm shadow-sm \
+                                   focus:border-brand-primary focus:outline-none \
+                                   focus:ring-1 focus:ring-brand-primary" {
+                            @for &(value, label) in DELETION_REASONS {
+                                option value=(value) { (label) }
+                            }
+                        }
+                        (form_label("Public Reason (optional)"))
+                        input type="text" name="public_reason"
+                            placeholder="Enter public reason..."
+                            class="block w-full rounded-md border border-neutral-300 \
+                                   px-3 py-2 text-sm shadow-sm \
+                                   focus:border-brand-primary focus:outline-none \
+                                   focus:ring-1 focus:ring-brand-primary";
+                        (form_label("Private Reason (optional)"))
+                        input type="text" name="private_reason"
+                            placeholder="Enter private reason (audit log)..."
+                            class="block w-full rounded-md border border-neutral-300 \
+                                   px-3 py-2 text-sm shadow-sm \
+                                   focus:border-brand-primary focus:outline-none \
+                                   focus:ring-1 focus:ring-brand-primary";
+                        (form_actions(html! {
+                            (danger_button("Delete Account Immediately"))
+                        }))
+                    }
+                }
+                dialog id="delete-immediately-dialog"
+                    class="rounded-xl border border-neutral-200 bg-white p-6 shadow-xl \
+                           backdrop:bg-black/40 w-full max-w-md" {
+                    div class="space-y-4" {
+                        h2 class="text-lg font-semibold text-neutral-900" {
+                            "Confirm immediate account deletion"
+                        }
+                        p class="text-sm text-neutral-700" {
+                            "You are about to permanently delete the account "
+                            strong { "@" (user.username) }
+                            ". This cannot be undone."
+                        }
+                        p class="text-sm text-neutral-700" {
+                            "Type "
+                            code class="rounded bg-neutral-100 px-1 py-0.5 font-mono text-sm" {
+                                "DELETE"
+                            }
+                            " to confirm."
+                        }
+                        input type="text"
+                            id="delete-immediately-confirm-input"
+                            placeholder="DELETE"
+                            autocomplete="off"
+                            class="block w-full rounded-md border border-neutral-300 \
+                                   px-3 py-2 text-sm shadow-sm \
+                                   focus:border-red-500 focus:outline-none \
+                                   focus:ring-1 focus:ring-red-500";
+                        div class="flex justify-end gap-3" {
+                            button type="button"
+                                id="delete-immediately-cancel"
+                                class="inline-flex items-center justify-center gap-2 rounded-lg \
+                                       border border-neutral-300 bg-white px-4 py-2 text-sm \
+                                       font-medium text-neutral-700 transition-all duration-150 \
+                                       hover:border-neutral-400 hover:text-neutral-900 \
+                                       focus:outline-none focus:ring-2 focus:ring-brand-primary/20" {
+                                "Cancel"
+                            }
+                            button type="button"
+                                id="delete-immediately-confirm"
+                                disabled
+                                class="inline-flex items-center justify-center gap-2 rounded-lg \
+                                       bg-red-600 px-4 py-2 text-sm font-medium text-white \
+                                       transition-all duration-150 hover:bg-red-700 \
+                                       focus:outline-none focus:ring-2 focus:ring-red-600 \
+                                       focus:ring-offset-2 disabled:cursor-not-allowed \
+                                       disabled:opacity-50" {
+                                "Delete Account"
+                            }
+                        }
+                    }
+                }
+                script defer { (maud::PreEscaped(DELETE_IMMEDIATELY_SCRIPT)) }
+            }
+        }))
     }
 }
 
@@ -417,6 +524,38 @@ fn form_label(text: &str) -> Markup {
         label class="block text-sm font-medium text-neutral-700" { (text) }
     }
 }
+
+const DELETE_IMMEDIATELY_SCRIPT: &str = r#"
+(function () {
+	var form = document.getElementById('delete-immediately-form');
+	var dialog = document.getElementById('delete-immediately-dialog');
+	var input = document.getElementById('delete-immediately-confirm-input');
+	var cancel = document.getElementById('delete-immediately-cancel');
+	var confirm = document.getElementById('delete-immediately-confirm');
+	if (!form || !dialog || !input || !cancel || !confirm) return;
+	form.addEventListener('submit', function (event) {
+		event.preventDefault();
+		input.value = '';
+		confirm.disabled = true;
+		dialog.showModal();
+		input.focus();
+	});
+	input.addEventListener('input', function () {
+		confirm.disabled = input.value.trim() !== 'DELETE';
+	});
+	cancel.addEventListener('click', function () {
+		dialog.close();
+	});
+	confirm.addEventListener('click', function () {
+		if (input.value.trim() !== 'DELETE') return;
+		dialog.close();
+		form.submit();
+	});
+	dialog.addEventListener('click', function (event) {
+		if (event.target === dialog) dialog.close();
+	});
+})();
+"#;
 
 const MESSAGE_SHRED_FORM_SCRIPT: &str = r#"
 (function () {

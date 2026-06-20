@@ -6,6 +6,7 @@ import {ReportAlreadyResolvedError} from '@fluxer/errors/src/domains/moderation/
 import {UnknownUserError} from '@fluxer/errors/src/domains/user/UnknownUserError';
 import type {
 	BulkScheduleUserDeletionRequest,
+	DeleteAccountImmediatelyRequest,
 	ScheduleAccountDeletionRequest,
 } from '@fluxer/schema/src/domains/admin/AdminUserSchemas';
 import type Stripe from 'stripe';
@@ -170,6 +171,116 @@ export class AdminUserDeletionService {
 				['days', daysUntilDeletion.toString()],
 				['reason_code', data.reason_code.toString()],
 			]),
+		});
+		return {
+			user: await mapUserToAdminResponse(updatedUser, cacheService, acls),
+		};
+	}
+
+	async deleteAccountImmediately(
+		data: DeleteAccountImmediatelyRequest,
+		adminUserId: UserID,
+		auditLogReason: string | null,
+		acls: ReadonlySet<string>,
+	) {
+		const {users: userRepository, cache: cacheService} = this.deps.apiContext.services;
+		const {auditService, updatePropagator} = this.deps;
+		const userId = createUserID(data.user_id);
+		const user = await userRepository.findUnique(userId);
+		if (!user) {
+			throw new UnknownUserError();
+		}
+		const pendingDeletionAt = new Date();
+		const updatedUser = await userRepository.patchUpsert(
+			userId,
+			{
+				flags: user.flags | UserFlags.DELETED,
+				pending_deletion_at: pendingDeletionAt,
+				deletion_reason_code: data.reason_code,
+				deletion_public_reason: data.public_reason ?? null,
+				deletion_audit_log_reason: auditLogReason,
+			},
+			user.toRow(),
+		);
+		await reschedulePendingDeletion({
+			userId,
+			currentPendingDeletionAt: user.pendingDeletionAt,
+			nextPendingDeletionAt: pendingDeletionAt,
+			deletionReasonCode: data.reason_code,
+			userRepository,
+			deletionQueue: this.deps.kvDeletionQueue,
+		});
+		await AuthSession.terminateAllUserSessions(this.deps.apiContext, userId);
+		const {stripe, billingRepository} = this.deps;
+		if (user.stripeSubscriptionId && stripe) {
+			try {
+				const sub = await billingRepository.subscriptions.findById(user.stripeSubscriptionId);
+				const latestInvoiceId = sub?.latest_invoice_id ?? null;
+				let chargeIdForRefund: string | null = null;
+				if (latestInvoiceId) {
+					const payment = await billingRepository.payments.findPrimaryForInvoice(latestInvoiceId);
+					chargeIdForRefund = payment?.charge_id ?? null;
+				}
+				const canceled = await stripe.subscriptions.cancel(user.stripeSubscriptionId, {
+					invoice_now: false,
+					prorate: false,
+				});
+				try {
+					await billingRepository.subscriptions.upsertFromStripe(canceled, {
+						knownUserId: BigInt(userId),
+						snapshotCapturedAt: new Date(),
+					});
+				} catch (mirrorErr) {
+					Logger.error(
+						{mirrorErr, subId: canceled.id},
+						'Mirror upsert failed after immediate deletion subscription cancel; reconciler will heal',
+					);
+				}
+				if (chargeIdForRefund) {
+					const refund = await stripe.refunds.create({
+						charge: chargeIdForRefund,
+						reason: 'fraudulent',
+						metadata: {
+							admin_user_id: String(adminUserId),
+							target_user_id: String(userId),
+							reason: 'immediate_deletion',
+						},
+					});
+					try {
+						await billingRepository.refunds.upsertFromStripe(refund, {
+							invoiceId: latestInvoiceId ?? undefined,
+							customerId: user.stripeCustomerId ?? undefined,
+							userId: BigInt(userId),
+						});
+					} catch (mirrorErr) {
+						Logger.error(
+							{mirrorErr, refundId: refund.id},
+							'Mirror upsert failed after immediate deletion refund; reconciler will heal',
+						);
+					}
+				}
+			} catch (err) {
+				Logger.error(
+					{err, userId: userId.toString(), subscriptionId: user.stripeSubscriptionId},
+					'Failed to cancel/refund Stripe subscription on immediate deletion',
+				);
+			}
+		}
+		await updatePropagator.propagateUserUpdate({userId, oldUser: user, updatedUser: updatedUser});
+		await this.banIdentifiersForScheduledDeletion({
+			user,
+			adminUserId,
+			auditLogReason,
+			deletionReasonCode: data.reason_code,
+		});
+		await this.resolvePendingReportsAgainstUser({user, adminUserId});
+		await auditService.createAuditLog({
+			adminUserId,
+			targetType: 'user',
+			targetId: data.user_id,
+			action: 'delete_immediately',
+			auditLogReason,
+			metadata: new Map([['reason_code', data.reason_code.toString()]]),
 		});
 		return {
 			user: await mapUserToAdminResponse(updatedUser, cacheService, acls),

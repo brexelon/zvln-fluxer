@@ -281,6 +281,23 @@ pub async fn dispatch(
             "User deletion cancelled successfully",
             "Failed to cancel user deletion",
         ),
+        "delete_immediately" => {
+            let reason_code = form.parse_i32("reason_code").unwrap_or(2);
+            let public_reason = get("public_reason");
+            let private_reason = get("private_reason");
+            DispatchOutcome::from_result(
+                client
+                    .delete_account_immediately(
+                        user_id,
+                        reason_code,
+                        public_reason.as_deref(),
+                        private_reason.as_deref(),
+                    )
+                    .await,
+                "Account deleted immediately",
+                "Failed to delete account",
+            )
+        }
         "change_dob" => {
             let Some(dob) = get("date_of_birth") else {
                 return DispatchOutcome::error("Date of birth is required");

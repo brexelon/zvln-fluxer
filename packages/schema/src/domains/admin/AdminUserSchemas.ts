@@ -348,6 +348,14 @@ export const ScheduleAccountDeletionRequest = z.object({
 
 export type ScheduleAccountDeletionRequest = z.infer<typeof ScheduleAccountDeletionRequest>;
 
+export const DeleteAccountImmediatelyRequest = z.object({
+	user_id: SnowflakeType.describe('ID of the user to delete immediately'),
+	reason_code: Int32Type.describe('Code indicating the reason for deletion'),
+	public_reason: createStringType(0, 512).optional().describe('Public-facing reason for the deletion'),
+});
+
+export type DeleteAccountImmediatelyRequest = z.infer<typeof DeleteAccountImmediatelyRequest>;
+
 export const SetUserAclsRequest = z.object({
 	user_id: SnowflakeType.describe('ID of the user to set ACLs for'),
 	acls: z.array(createStringType(1, 64)).max(100).describe('List of access control permissions to assign'),

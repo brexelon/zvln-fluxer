@@ -485,6 +485,24 @@ impl AdminApiClient {
         Ok(resp.user)
     }
 
+    pub async fn delete_account_immediately(
+        &self,
+        user_id: &str,
+        reason_code: i32,
+        public_reason: Option<&str>,
+        private_reason: Option<&str>,
+    ) -> ApiResult<AdminUser> {
+        let body = serde_json::json!({
+            "user_id": user_id,
+            "reason_code": reason_code,
+            "public_reason": public_reason,
+        });
+        let resp: UserMutationResponse = self
+            .post_typed_with_reason("/admin/users/delete-account-immediately", &body, private_reason)
+            .await?;
+        Ok(resp.user)
+    }
+
     pub async fn cancel_deletion(&self, user_id: &str) -> ApiResult<AdminUser> {
         let body = generated_types::DisableMfaRequest {
             user_id: snowflake(user_id),
