@@ -427,7 +427,7 @@ export const getAdminApiKeyService = singleton(
 );
 
 export function createUserCacheService(): UserCacheService {
-	return new UserCacheService(createUsersServiceClient());
+	return new UserCacheService(createUsersServiceClient(getUserRepository()));
 }
 
 let serviceSingletonInitializationPromise: Promise<void> | null = null;

@@ -357,6 +357,7 @@ services:
       FLUXER_SVC_SHARD_ID: "0"
     depends_on:
       nats: {condition: service_started}
+      postgres: {condition: service_healthy}
 
   messages:
     <<: *fluxer-service

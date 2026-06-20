@@ -4,8 +4,8 @@ import type {UserPartialResponse} from '@fluxer/schema/src/domains/user/UserResp
 import type {INatsConnectionManager} from '@pkgs/nats/src/INatsConnectionManager';
 import {type NatsConnection, StringCodec} from 'nats';
 import {describe, expect, it} from 'vitest';
-import {createUserID} from '../BrandedTypes';
-import {NatsUsersServiceClient} from './UsersServiceClient';
+import {createUserID, type UserID} from '../BrandedTypes';
+import {FallbackUsersServiceClient, NatsUsersServiceClient, type IUsersServiceClient} from './UsersServiceClient';
 
 interface FakeRequest {
 	subject: string;
@@ -145,5 +145,46 @@ describe('NatsUsersServiceClient', () => {
 		expect(first.get(userId)).toEqual(partial);
 		expect(first.get(secondUserId)).toEqual(secondPartial);
 		expect(second.get(userId)).toEqual(partial);
+	});
+
+	it('falls back to the repository client when the NATS users service fails', async () => {
+		const userId = createUserID(5001n);
+		const partial: UserPartialResponse = {
+			id: userId.toString(),
+			username: 'FallbackUser',
+			discriminator: '0',
+			global_name: null,
+			avatar: null,
+			avatar_color: null,
+			flags: 0,
+		};
+		const manager = new FakeNatsConnectionManager([{error: 'shard_unavailable'}]);
+		const natsClient = new NatsUsersServiceClient(manager, 250, 'svc.users.test');
+		const repositoryClient: IUsersServiceClient = {
+			getUserPartialResponses: async (userIds) => {
+				const result = new Map<UserID, UserPartialResponse>();
+				for (const id of userIds) {
+					if (id === userId) {
+						result.set(id, partial);
+					}
+				}
+				return result;
+			},
+			invalidateUserCache: async () => {},
+		};
+		const client = new FallbackUsersServiceClient(natsClient, repositoryClient);
+
+		const result = await client.getUserPartialResponses([userId]);
+
+		expect(manager.requests).toHaveLength(1);
+		expect(result.get(userId)).toEqual(partial);
+	});
+
+	it('surfaces service error payloads from the users service', async () => {
+		const userId = createUserID(6001n);
+		const manager = new FakeNatsConnectionManager([{error: 'shard_handler_error'}]);
+		const client = new NatsUsersServiceClient(manager, 250, 'svc.users.test');
+
+		await expect(client.getUserPartialResponses([userId])).rejects.toThrow('[users-service] shard_handler_error');
 	});
 });
