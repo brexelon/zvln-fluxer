@@ -98,6 +98,8 @@ fn delete_immediately_card(base: &str, user: &AdminUser, csrf_token: &str) -> Ma
                 form method="post"
                     id="delete-immediately-form"
                     data-admin-toast="false"
+                    hx-boost="false"
+                    onsubmit="return false;"
                     action={(base) "/users/" (user.id) "?action=delete_immediately&tab=moderation"} {
                     (csrf_input(csrf_token))
                     div class="space-y-3" {
@@ -126,13 +128,19 @@ fn delete_immediately_card(base: &str, user: &AdminUser, csrf_token: &str) -> Ma
                                    focus:border-brand-primary focus:outline-none \
                                    focus:ring-1 focus:ring-brand-primary";
                         (form_actions(html! {
-                            (danger_button("Delete Account Immediately"))
+                            button type="button"
+                                id="delete-immediately-open"
+                                class="inline-flex items-center justify-center gap-2 font-medium \
+                                       rounded-lg transition-all duration-150 focus:outline-none \
+                                       focus:ring-2 focus:ring-offset-2 w-fit px-4 py-2 text-base \
+                                       bg-red-600 text-white hover:bg-red-700 focus:ring-offset-white" {
+                                span { "Delete Account Immediately" }
+                            }
                         }))
                     }
                 }
                 dialog id="delete-immediately-dialog"
-                    class="fixed left-1/2 top-1/2 w-[min(100%-2rem,28rem)] max-w-md \
-                           -translate-x-1/2 -translate-y-1/2 rounded-xl border \
+                    class="m-auto w-[min(100%-2rem,28rem)] max-w-md rounded-xl border \
                            border-neutral-200 bg-white p-6 shadow-xl \
                            backdrop:bg-black/40" {
                     div class="space-y-4" {
@@ -183,7 +191,6 @@ fn delete_immediately_card(base: &str, user: &AdminUser, csrf_token: &str) -> Ma
                         }
                     }
                 }
-                script defer { (maud::PreEscaped(DELETE_IMMEDIATELY_SCRIPT)) }
             }
         }))
     }
@@ -527,104 +534,6 @@ fn form_label(text: &str) -> Markup {
         label class="block text-sm font-medium text-neutral-700" { (text) }
     }
 }
-
-const DELETE_IMMEDIATELY_SCRIPT: &str = r#"
-(function () {
-	var form = document.getElementById('delete-immediately-form');
-	var dialog = document.getElementById('delete-immediately-dialog');
-	var input = document.getElementById('delete-immediately-confirm-input');
-	var cancel = document.getElementById('delete-immediately-cancel');
-	var confirm = document.getElementById('delete-immediately-confirm');
-	if (!form || !dialog || !input || !cancel || !confirm) return;
-
-	var submitting = false;
-
-	function toast(level, message) {
-		document.body.dispatchEvent(new CustomEvent('showFlash', {detail: {level: level, message: message}}));
-	}
-
-	function csrfToken() {
-		var tokenInput = form.querySelector('input[name="_csrf"]');
-		return tokenInput ? tokenInput.value || '' : '';
-	}
-
-	function toastFromResponse(response) {
-		var raw = response.headers.get('X-Fluxer-Admin-Toast');
-		if (!raw) return null;
-		try {
-			var parsed = JSON.parse(raw);
-			return {
-				level: parsed && parsed.level ? String(parsed.level) : 'info',
-				message: parsed && parsed.message ? String(parsed.message) : ''
-			};
-		} catch (error) {
-			return null;
-		}
-	}
-
-	form.addEventListener('submit', function (event) {
-		event.preventDefault();
-		if (submitting) return;
-		input.value = '';
-		confirm.disabled = true;
-		if (typeof dialog.showModal === 'function') {
-			dialog.showModal();
-		}
-		input.focus();
-	});
-
-	input.addEventListener('input', function () {
-		confirm.disabled = input.value.trim() !== 'DELETE';
-	});
-
-	cancel.addEventListener('click', function () {
-		dialog.close();
-	});
-
-	confirm.addEventListener('click', function () {
-		if (input.value.trim() !== 'DELETE' || submitting) return;
-		submitting = true;
-		confirm.disabled = true;
-		dialog.close();
-		toast('info', 'Deleting account...');
-		fetch(form.getAttribute('action') || window.location.href, {
-			method: 'POST',
-			credentials: 'same-origin',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-				'HX-Request': 'true',
-				'HX-Target': 'flash-container',
-				'X-CSRF-Token': csrfToken()
-			},
-			body: new URLSearchParams(new FormData(form)).toString()
-		}).then(function (response) {
-			var parsed = toastFromResponse(response);
-			if (!response.ok && !parsed) throw new Error('Failed to delete account.');
-			toast(
-				parsed ? parsed.level : response.ok ? 'success' : 'error',
-				parsed ? parsed.message : response.ok ? 'Account deleted immediately.' : 'Failed to delete account.'
-			);
-			if (response.ok) {
-				window.location.reload();
-			}
-		}).catch(function (error) {
-			toast('error', error && error.message ? error.message : 'Failed to delete account.');
-		}).finally(function () {
-			submitting = false;
-			confirm.disabled = input.value.trim() !== 'DELETE';
-		});
-	});
-
-	dialog.addEventListener('click', function (event) {
-		if (event.target === dialog) dialog.close();
-	});
-
-	dialog.addEventListener('cancel', function (event) {
-		event.preventDefault();
-		dialog.close();
-	});
-})();
-"#;
 
 const MESSAGE_SHRED_FORM_SCRIPT: &str = r#"
 (function () {

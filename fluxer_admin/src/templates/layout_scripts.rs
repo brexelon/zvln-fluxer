@@ -623,3 +623,143 @@ pub const SH_LINK_REWRITE_SCRIPT: &str = r#"
 })();
 
 "#;
+
+pub const DELETE_IMMEDIATELY_SCRIPT: &str = r#"
+(function () {
+	if (window.__fluxerDeleteImmediatelyReady) return;
+	window.__fluxerDeleteImmediatelyReady = true;
+
+	var submitting = false;
+
+	function elements() {
+		return {
+			form: document.getElementById('delete-immediately-form'),
+			dialog: document.getElementById('delete-immediately-dialog'),
+			input: document.getElementById('delete-immediately-confirm-input'),
+			confirm: document.getElementById('delete-immediately-confirm')
+		};
+	}
+
+	function toast(level, message) {
+		document.body.dispatchEvent(new CustomEvent('showFlash', {detail: {level: level, message: message}}));
+	}
+
+	function csrfToken(form) {
+		var tokenInput = form.querySelector('input[name="_csrf"]');
+		return tokenInput ? tokenInput.value || '' : '';
+	}
+
+	function toastFromResponse(response) {
+		var raw = response.headers.get('X-Fluxer-Admin-Toast');
+		if (!raw) return null;
+		try {
+			var parsed = JSON.parse(raw);
+			return {
+				level: parsed && parsed.level ? String(parsed.level) : 'info',
+				message: parsed && parsed.message ? String(parsed.message) : ''
+			};
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function openDialog() {
+		var els = elements();
+		if (!els.form || !els.dialog || !els.input || !els.confirm) return;
+		if (submitting) return;
+		els.input.value = '';
+		els.confirm.disabled = true;
+		if (typeof els.dialog.showModal === 'function') {
+			els.dialog.showModal();
+		}
+		els.input.focus();
+	}
+
+	function submitDeletion() {
+		var els = elements();
+		if (!els.form || !els.input || !els.confirm) return;
+		if (els.input.value.trim() !== 'DELETE' || submitting) return;
+		submitting = true;
+		els.confirm.disabled = true;
+		if (els.dialog) els.dialog.close();
+		toast('info', 'Deleting account...');
+		fetch(els.form.getAttribute('action') || window.location.href, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'HX-Request': 'true',
+				'HX-Target': 'flash-container',
+				'X-CSRF-Token': csrfToken(els.form)
+			},
+			body: new URLSearchParams(new FormData(els.form)).toString()
+		}).then(function (response) {
+			var parsed = toastFromResponse(response);
+			if (!response.ok && !parsed) throw new Error('Failed to delete account.');
+			toast(
+				parsed ? parsed.level : response.ok ? 'success' : 'error',
+				parsed ? parsed.message : response.ok ? 'Account deleted immediately.' : 'Failed to delete account.'
+			);
+			if (response.ok) {
+				window.location.reload();
+			}
+		}).catch(function (error) {
+			toast('error', error && error.message ? error.message : 'Failed to delete account.');
+		}).finally(function () {
+			submitting = false;
+			var latest = elements();
+			if (latest.confirm && latest.input) {
+				latest.confirm.disabled = latest.input.value.trim() !== 'DELETE';
+			}
+		});
+	}
+
+	document.body.addEventListener('click', function (event) {
+		if (event.target.closest('#delete-immediately-open')) {
+			event.preventDefault();
+			openDialog();
+			return;
+		}
+		if (event.target.closest('#delete-immediately-cancel')) {
+			event.preventDefault();
+			var dialog = elements().dialog;
+			if (dialog) dialog.close();
+			return;
+		}
+		if (event.target.closest('#delete-immediately-confirm')) {
+			event.preventDefault();
+			submitDeletion();
+			return;
+		}
+		var dialog = elements().dialog;
+		if (dialog && event.target === dialog) {
+			dialog.close();
+		}
+	});
+
+	document.body.addEventListener('input', function (event) {
+		if (!(event.target instanceof HTMLInputElement)) return;
+		if (event.target.id !== 'delete-immediately-confirm-input') return;
+		var confirm = elements().confirm;
+		if (confirm) confirm.disabled = event.target.value.trim() !== 'DELETE';
+	});
+
+	document.body.addEventListener('keydown', function (event) {
+		if (event.key !== 'Enter') return;
+		var els = elements();
+		if (!els.dialog || !els.dialog.open || !els.input || !els.confirm) return;
+		if (document.activeElement === els.input && !els.confirm.disabled) {
+			event.preventDefault();
+			submitDeletion();
+		}
+	});
+
+	document.body.addEventListener('submit', function (event) {
+		var form = event.target;
+		if (!(form instanceof HTMLFormElement)) return;
+		if (form.id !== 'delete-immediately-form') return;
+		event.preventDefault();
+		openDialog();
+	}, true);
+})();
+"#;
