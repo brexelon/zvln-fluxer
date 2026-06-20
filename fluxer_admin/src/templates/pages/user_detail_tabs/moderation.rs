@@ -97,6 +97,7 @@ fn delete_immediately_card(base: &str, user: &AdminUser, csrf_token: &str) -> Ma
                 }
                 form method="post"
                     id="delete-immediately-form"
+                    data-admin-toast="false"
                     action={(base) "/users/" (user.id) "?action=delete_immediately&tab=moderation"} {
                     (csrf_input(csrf_token))
                     div class="space-y-3" {
@@ -130,8 +131,10 @@ fn delete_immediately_card(base: &str, user: &AdminUser, csrf_token: &str) -> Ma
                     }
                 }
                 dialog id="delete-immediately-dialog"
-                    class="rounded-xl border border-neutral-200 bg-white p-6 shadow-xl \
-                           backdrop:bg-black/40 w-full max-w-md" {
+                    class="fixed left-1/2 top-1/2 w-[min(100%-2rem,28rem)] max-w-md \
+                           -translate-x-1/2 -translate-y-1/2 rounded-xl border \
+                           border-neutral-200 bg-white p-6 shadow-xl \
+                           backdrop:bg-black/40" {
                     div class="space-y-4" {
                         h2 class="text-lg font-semibold text-neutral-900" {
                             "Confirm immediate account deletion"
@@ -533,26 +536,92 @@ const DELETE_IMMEDIATELY_SCRIPT: &str = r#"
 	var cancel = document.getElementById('delete-immediately-cancel');
 	var confirm = document.getElementById('delete-immediately-confirm');
 	if (!form || !dialog || !input || !cancel || !confirm) return;
+
+	var submitting = false;
+
+	function toast(level, message) {
+		document.body.dispatchEvent(new CustomEvent('showFlash', {detail: {level: level, message: message}}));
+	}
+
+	function csrfToken() {
+		var tokenInput = form.querySelector('input[name="_csrf"]');
+		return tokenInput ? tokenInput.value || '' : '';
+	}
+
+	function toastFromResponse(response) {
+		var raw = response.headers.get('X-Fluxer-Admin-Toast');
+		if (!raw) return null;
+		try {
+			var parsed = JSON.parse(raw);
+			return {
+				level: parsed && parsed.level ? String(parsed.level) : 'info',
+				message: parsed && parsed.message ? String(parsed.message) : ''
+			};
+		} catch (error) {
+			return null;
+		}
+	}
+
 	form.addEventListener('submit', function (event) {
 		event.preventDefault();
+		if (submitting) return;
 		input.value = '';
 		confirm.disabled = true;
-		dialog.showModal();
+		if (typeof dialog.showModal === 'function') {
+			dialog.showModal();
+		}
 		input.focus();
 	});
+
 	input.addEventListener('input', function () {
 		confirm.disabled = input.value.trim() !== 'DELETE';
 	});
+
 	cancel.addEventListener('click', function () {
 		dialog.close();
 	});
+
 	confirm.addEventListener('click', function () {
-		if (input.value.trim() !== 'DELETE') return;
+		if (input.value.trim() !== 'DELETE' || submitting) return;
+		submitting = true;
+		confirm.disabled = true;
 		dialog.close();
-		form.submit();
+		toast('info', 'Deleting account...');
+		fetch(form.getAttribute('action') || window.location.href, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'HX-Request': 'true',
+				'HX-Target': 'flash-container',
+				'X-CSRF-Token': csrfToken()
+			},
+			body: new URLSearchParams(new FormData(form)).toString()
+		}).then(function (response) {
+			var parsed = toastFromResponse(response);
+			if (!response.ok && !parsed) throw new Error('Failed to delete account.');
+			toast(
+				parsed ? parsed.level : response.ok ? 'success' : 'error',
+				parsed ? parsed.message : response.ok ? 'Account deleted immediately.' : 'Failed to delete account.'
+			);
+			if (response.ok) {
+				window.location.reload();
+			}
+		}).catch(function (error) {
+			toast('error', error && error.message ? error.message : 'Failed to delete account.');
+		}).finally(function () {
+			submitting = false;
+			confirm.disabled = input.value.trim() !== 'DELETE';
+		});
 	});
+
 	dialog.addEventListener('click', function (event) {
 		if (event.target === dialog) dialog.close();
+	});
+
+	dialog.addEventListener('cancel', function (event) {
+		event.preventDefault();
+		dialog.close();
 	});
 })();
 "#;
