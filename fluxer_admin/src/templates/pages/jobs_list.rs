@@ -90,16 +90,30 @@ pub fn jobs_list_page(config: &AdminConfig, auth: &AuthContext, params: &JobsLis
 }
 
 pub fn jobs_results(config: &AdminConfig, params: &JobsListParams) -> Markup {
-    let base = &config.base_path;
-    let count_label = jobs_count_label(params);
-    html! {
-        div id="jobs-results"
-            @if params.auto_poll {
+    let content = jobs_results_body(config, params);
+    if params.auto_poll {
+        html! {
+            div id="jobs-results"
                 hx-get=(params.current_url)
                 hx-trigger="every 3s"
                 hx-target="#jobs-results"
-                hx-swap="outerHTML"
-            } {
+                hx-swap="outerHTML" {
+                (content)
+            }
+        }
+    } else {
+        html! {
+            div id="jobs-results" {
+                (content)
+            }
+        }
+    }
+}
+
+fn jobs_results_body(config: &AdminConfig, params: &JobsListParams) -> Markup {
+    let base = &config.base_path;
+    let count_label = jobs_count_label(params);
+    html! {
         p class="text-sm text-neutral-500 mb-4" {
             (count_label)
             @if params.auto_poll {
@@ -118,7 +132,6 @@ pub fn jobs_results(config: &AdminConfig, params: &JobsListParams) -> Markup {
                     params.requester_filter, params.max_lookback_days,
                 ))
             }
-        }
         }
     }
 }
