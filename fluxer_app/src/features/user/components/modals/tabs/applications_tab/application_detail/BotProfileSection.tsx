@@ -12,6 +12,7 @@ import {SectionCard} from '@app/features/user/components/modals/tabs/application
 import type {ApplicationDetailForm} from '@app/features/user/components/modals/tabs/applications_tab/application_detail/ApplicationDetailTypes';
 import {AvatarUploader} from '@app/features/user/components/modals/tabs/my_profile_tab/AvatarUploader';
 import {BannerUploader} from '@app/features/user/components/modals/tabs/my_profile_tab/BannerUploader';
+import {hasValidUsernameFormat} from '@fluxer/schema/src/primitives/UserValidators';
 import {msg} from '@lingui/core/macro';
 import {useLingui} from '@lingui/react/macro';
 import type React from 'react';
@@ -164,6 +165,9 @@ export const BotProfileSection: React.FC<BotProfileSectionProps> = ({
 								value: /^[a-z0-9_.]+$/,
 								message: i18n._(USERNAME_CAN_ONLY_CONTAIN_LETTERS_NUMBERS_AND_UNDERSCORES_DESCRIPTOR),
 							},
+							validate: (value) =>
+								hasValidUsernameFormat(value) ||
+								i18n._(USERNAME_CAN_ONLY_CONTAIN_LETTERS_NUMBERS_AND_UNDERSCORES_DESCRIPTOR),
 						}}
 						render={({field}) => (
 							<Input

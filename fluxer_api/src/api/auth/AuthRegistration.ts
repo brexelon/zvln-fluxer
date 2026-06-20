@@ -46,7 +46,7 @@ import * as AgeUtils from '../utils/AgeUtils';
 import {extractEmailDomain} from '../utils/EmailDomainUtils';
 import {lookupGeoip} from '../utils/IpUtils';
 import {generateRandomUsername} from '../utils/UsernameGenerator';
-import {deriveUsernameFromDisplayName} from '../utils/UsernameSuggestionUtils';
+import {deriveUsernameFromDisplayName, resolveAvailableUsername} from '../utils/UsernameSuggestionUtils';
 import * as AuthPassword from './AuthPassword';
 import * as AuthSession from './AuthSession';
 import * as AuthUtility from './AuthUtility';
@@ -198,8 +198,10 @@ export async function register(
 		}
 	} else {
 		const derivedUsername = deriveUsernameFromDisplayName(data.global_name ?? '');
-		if (derivedUsername && (await users.isUsernameAvailable(derivedUsername))) {
-			usernameCandidate = derivedUsername;
+		if (derivedUsername) {
+			usernameCandidate =
+				(await resolveAvailableUsername(derivedUsername, (candidate) => users.isUsernameAvailable(candidate))) ??
+				undefined;
 		}
 		if (!usernameCandidate) {
 			let candidate = generateRandomUsername();

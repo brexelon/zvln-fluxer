@@ -3,8 +3,6 @@
 import {randomInt} from 'node:crypto';
 import {ChannelTypes, MessageTypes} from '@fluxer/constants/src/ChannelConstants';
 import {
-	DELETED_USER_GLOBAL_NAME,
-	DELETED_USER_USERNAME,
 	ProfileFieldPrivacyFlags,
 	UserFlags,
 } from '@fluxer/constants/src/UserConstants';
@@ -30,6 +28,7 @@ import type {ApplicationRepository} from '../../oauth/repositories/ApplicationRe
 import type {OAuth2TokenRepository} from '../../oauth/repositories/OAuth2TokenRepository';
 import type {WorkerTaskName} from '../../worker/WorkerLaneConfig';
 import type {UserRepository} from '../repositories/UserRepository';
+import {allocateDeletedUserIdentity} from '../../utils/DeletedUserIdentityUtils';
 
 const CHUNK_SIZE = 100;
 
@@ -133,11 +132,14 @@ export async function processUserDeletion(
 		}
 	}
 	const deletedUserId = createUserID(await snowflakeService.generate());
+	const deletedMessageAuthorIdentity = await allocateDeletedUserIdentity((username) =>
+		userRepository.isUsernameAvailable(username),
+	);
 	Logger.debug({userId, deletedUserId}, 'Creating dedicated deleted user record');
 	await userRepository.create({
 		user_id: deletedUserId,
-		username: DELETED_USER_USERNAME,
-		global_name: DELETED_USER_GLOBAL_NAME,
+		username: deletedMessageAuthorIdentity.username,
+		global_name: deletedMessageAuthorIdentity.globalName,
 		bot: false,
 		system: false,
 		email: null,
@@ -427,12 +429,15 @@ export async function processUserDeletion(
 	]);
 	await userRepository.deleteUserSecondaryIndices(userId);
 	const userForAnonymization = await userRepository.findUniqueAssert(userId);
+	const deletedUserIdentity = await allocateDeletedUserIdentity((username) =>
+		userRepository.isUsernameAvailable(username),
+	);
 	Logger.debug({userId}, 'Anonymizing user record');
 	const anonymisedUser = await userRepository.patchUpsert(
 		userId,
 		{
-			username: DELETED_USER_USERNAME,
-			global_name: DELETED_USER_GLOBAL_NAME,
+			username: deletedUserIdentity.username,
+			global_name: deletedUserIdentity.globalName,
 			email: null,
 			email_verified: false,
 			password_hash: null,

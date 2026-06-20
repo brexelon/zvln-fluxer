@@ -43,7 +43,7 @@ import {EXTERNAL_RESPONSE_LIMITS} from '../../utils/ExternalResponseLimits';
 import * as FetchUtils from '../../utils/FetchUtils';
 import {isJsonRecord, parseJsonRecord, parseJsonWithGuard} from '../../utils/JsonBoundaryUtils';
 import {generateRandomUsername} from '../../utils/UsernameGenerator';
-import {deriveUsernameFromDisplayName} from '../../utils/UsernameSuggestionUtils';
+import {deriveUsernameFromDisplayName, resolveAvailableUsername} from '../../utils/UsernameSuggestionUtils';
 import * as AuthSession from '../AuthSession';
 import {SsoIdentityRepository} from './SsoIdentityRepository';
 import {parseTokenEndpointResponse, sanitizeSsoRedirectTo, tryDiscoverOidcProviderMetadata} from './SsoUtils';
@@ -418,7 +418,11 @@ export class SsoService {
 		const {users, snowflake} = this.apiContext.services;
 		const userId = (await snowflake.generate()) as UserID;
 		const baseName = claims.name?.trim() || claims.email.split('@')[0] || generateRandomUsername();
-		let username = deriveUsernameFromDisplayName(baseName) ?? generateRandomUsername();
+		const derivedUsername = deriveUsernameFromDisplayName(baseName);
+		let username =
+			(derivedUsername
+				? await resolveAvailableUsername(derivedUsername, (candidate) => users.isUsernameAvailable(candidate))
+				: null) ?? generateRandomUsername();
 		if (!(await users.isUsernameAvailable(username))) {
 			let candidate = generateRandomUsername();
 			for (let i = 0; i < 10 && !(await users.isUsernameAvailable(candidate)); i++) {

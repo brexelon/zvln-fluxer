@@ -291,8 +291,15 @@ export class AuthRequestService {
 		return await this.toAuthTokenResponse(result);
 	}
 
-	getUsernameSuggestions({globalName}: AuthUsernameSuggestionsRequest): UsernameSuggestionsResponse {
-		return {suggestions: generateUsernameSuggestions(globalName)};
+	getUsernameSuggestions({globalName}: AuthUsernameSuggestionsRequest): Promise<UsernameSuggestionsResponse> {
+		return this.generateUsernameSuggestions(globalName);
+	}
+
+	private async generateUsernameSuggestions(globalName: string): Promise<UsernameSuggestionsResponse> {
+		const suggestions = await generateUsernameSuggestions(globalName, (username) =>
+			this.apiContext.services.users.isUsernameAvailable(username),
+		);
+		return {suggestions};
 	}
 
 	async initiateHandoff({

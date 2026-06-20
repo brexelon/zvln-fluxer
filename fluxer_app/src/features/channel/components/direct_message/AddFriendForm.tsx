@@ -16,6 +16,7 @@ import MobileLayout from '@app/features/ui/state/MobileLayout';
 import {UserSettingsModal} from '@app/features/user/components/modals/UserSettingsModal';
 import Users from '@app/features/user/state/Users';
 import {APIErrorCodes} from '@fluxer/constants/src/ApiErrorCodes';
+import {hasValidUsernameFormat} from '@fluxer/schema/src/primitives/UserValidators';
 import {msg} from '@lingui/core/macro';
 import {Trans, useLingui} from '@lingui/react/macro';
 import {EnvelopeSimpleIcon, WarningCircleIcon} from '@phosphor-icons/react';
@@ -123,7 +124,7 @@ export const AddFriendForm: React.FC<AddFriendFormProps> = observer(({onSuccess}
 			return;
 		}
 		const normalized = username.toLowerCase();
-		if (!/^[a-z0-9_.]+$/.test(normalized) || /^[_.]|[_.]$|[_.]{2}/.test(normalized)) {
+		if (!hasValidUsernameFormat(normalized)) {
 			setResultStatus('error');
 			setErrorCode(APIErrorCodes.INVALID_FORM_BODY);
 			return;

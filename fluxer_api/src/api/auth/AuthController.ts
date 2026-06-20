@@ -531,7 +531,7 @@ export function AuthController(app: HonoApp) {
 			description: 'Generate username suggestions based on a provided global name for new account registration.',
 		}),
 		async (ctx) => {
-			const response = ctx.get('authRequestService').getUsernameSuggestions({
+			const response = await ctx.get('authRequestService').getUsernameSuggestions({
 				globalName: ctx.req.valid('json').global_name,
 			});
 			return ctx.json(response);

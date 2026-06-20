@@ -22,6 +22,7 @@ import {useLocation} from '@app/features/platform/components/router/RouterReact'
 import {Button} from '@app/features/ui/button/Button';
 import {useUsernameSuggestions} from '@app/features/user/hooks/useUsernameSuggestions';
 import type {ThemeType} from '@fluxer/constants/src/UserConstants';
+import {hasValidUsernameFormat} from '@fluxer/schema/src/primitives/UserValidators';
 import {msg} from '@lingui/core/macro';
 import {Trans, useLingui} from '@lingui/react/macro';
 import {AnimatePresence, motion} from 'framer-motion';
@@ -289,7 +290,7 @@ export const AuthRegisterFormCore = observer(function AuthRegisterFormCore({
 					message: i18n._(USERNAME_MUST_BE_CHARACTERS_OR_LESS_DESCRIPTOR, {maxUsernameLength: MAX_USERNAME_LENGTH}),
 				};
 			}
-			if (!/^[a-z0-9_.]+$/.test(trimmed)) {
+			if (!hasValidUsernameFormat(trimmed)) {
 				return {
 					type: 'error',
 					message: i18n._(ONLY_LOWERCASE_LETTERS_NUMBERS_UNDERSCORES_PERIODS_DESCRIPTOR),

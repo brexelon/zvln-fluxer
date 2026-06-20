@@ -2,8 +2,6 @@
 
 import {APIErrorCodes} from '@fluxer/constants/src/ApiErrorCodes';
 import {
-	DELETED_USER_GLOBAL_NAME,
-	DELETED_USER_USERNAME,
 	ProfileFieldPrivacyFlags,
 	UserFlags,
 } from '@fluxer/constants/src/UserConstants';
@@ -31,6 +29,7 @@ import type {User} from '../models/User';
 import {enforceFluxerTagChangeRateLimit} from '../user/FluxerTagChangeRateLimit';
 import {hasPartialUserFieldsChanged, mapUserToPrivateResponse} from '../user/UserMappers';
 import {hashPassword} from '../utils/PasswordUtils';
+import {allocateDeletedUserIdentity} from '../utils/DeletedUserIdentityUtils';
 import {generateRandomUsername} from '../utils/UsernameGenerator';
 import {deriveUsernameFromDisplayName} from '../utils/UsernameSuggestionUtils';
 import {remapAuthorMessagesToDeletedUser} from './ApplicationMessageAuthorAnonymization';
@@ -319,11 +318,14 @@ export class ApplicationService {
 				}
 			}
 			const botUser = await this.apiContext.services.users.findUniqueAssert(botUserId);
+			const deletedUserIdentity = await allocateDeletedUserIdentity((username) =>
+				this.apiContext.services.users.isUsernameAvailable(username),
+			);
 			await this.apiContext.services.users.patchUpsert(
 				botUserId,
 				{
-					username: DELETED_USER_USERNAME,
-					global_name: DELETED_USER_GLOBAL_NAME,
+					username: deletedUserIdentity.username,
+					global_name: deletedUserIdentity.globalName,
 					email: null,
 					email_verified: false,
 					password_hash: null,

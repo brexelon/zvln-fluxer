@@ -3,8 +3,6 @@
 import type {ChannelMessageNotifications} from '@fluxer/constants/src/NotificationConstants';
 import {
 	DEFAULT_GUILD_FOLDER_ICON,
-	DELETED_USER_GLOBAL_NAME,
-	DELETED_USER_USERNAME,
 	type GuildFolderIcon,
 	PremiumFlags,
 	PUBLIC_USER_FLAGS,
@@ -73,9 +71,9 @@ export function mapUserToPartialResponse(user: User): UserPartialResponse {
 	if (isDeleted) {
 		return {
 			id: user.id.toString(),
-			username: DELETED_USER_USERNAME,
+			username: user.username,
 			discriminator: '0',
-			global_name: DELETED_USER_GLOBAL_NAME,
+			global_name: user.globalName ?? user.username,
 			avatar: null,
 			avatar_color: null,
 			bot: isBot || undefined,

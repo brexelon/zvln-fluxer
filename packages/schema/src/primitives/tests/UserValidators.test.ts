@@ -69,6 +69,19 @@ describe('UsernameType', () => {
 		const result = UsernameType.safeParse('user123');
 		expect(result.success).toBe(true);
 	});
+	it('accepts usernames ending with a single underscore or period', () => {
+		expect(UsernameType.safeParse('john_').success).toBe(true);
+		expect(UsernameType.safeParse('john.').success).toBe(true);
+	});
+	it('rejects usernames with leading underscores or periods', () => {
+		expect(UsernameType.safeParse('_john').success).toBe(false);
+		expect(UsernameType.safeParse('.john').success).toBe(false);
+	});
+	it('rejects usernames with consecutive underscores or periods', () => {
+		expect(UsernameType.safeParse('john__').success).toBe(false);
+		expect(UsernameType.safeParse('john..').success).toBe(false);
+		expect(UsernameType.safeParse('john._').success).toBe(false);
+	});
 	it('trims whitespace', () => {
 		const result = UsernameType.safeParse('  testuser  ');
 		expect(result.success).toBe(true);
