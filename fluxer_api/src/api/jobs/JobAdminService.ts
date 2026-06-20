@@ -71,6 +71,10 @@ export class JobAdminService {
 }
 
 function rowToEntry(row: JobByIdRow): JobLedgerEntry {
+	const createdAt = row.created_at ?? row.started_at ?? row.completed_at;
+	if (!createdAt) {
+		throw new Error(`Job ${row.job_id.toString()} is missing created_at`);
+	}
 	return {
 		job_id: row.job_id.toString(),
 		task_type: row.task_type,
@@ -79,7 +83,7 @@ function rowToEntry(row: JobByIdRow): JobLedgerEntry {
 		progress_total: row.progress_total === null ? null : Number(row.progress_total),
 		progress_message: row.progress_message,
 		error_message: row.error_message,
-		created_at: row.created_at.toISOString(),
+		created_at: createdAt.toISOString(),
 		started_at: row.started_at ? row.started_at.toISOString() : null,
 		completed_at: row.completed_at ? row.completed_at.toISOString() : null,
 		requested_by_user_id: row.requested_by_user_id === null ? null : row.requested_by_user_id.toString(),

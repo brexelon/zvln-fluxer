@@ -24,6 +24,38 @@ function bucketDayFor(d: Date): string {
 	return d.toISOString().slice(0, 10);
 }
 
+function mergeJobListingRow(
+	fullRow: JobByIdRow,
+	listingRow: Pick<JobByDayBucketRow, 'created_at' | 'task_type' | 'status' | 'requested_by_user_id'>,
+): JobByIdRow | null {
+	const created_at = fullRow.created_at ?? listingRow.created_at;
+	const task_type = fullRow.task_type ?? listingRow.task_type;
+	if (!created_at || !task_type) return null;
+	return {
+		job_id: fullRow.job_id,
+		task_type,
+		status: fullRow.status ?? listingRow.status,
+		progress_current: fullRow.progress_current ?? null,
+		progress_total: fullRow.progress_total ?? null,
+		progress_message: fullRow.progress_message ?? null,
+		payload: fullRow.payload ?? null,
+		result: fullRow.result ?? null,
+		error_message: fullRow.error_message ?? null,
+		created_at,
+		started_at: fullRow.started_at ?? null,
+		completed_at: fullRow.completed_at ?? null,
+		requested_by_user_id: fullRow.requested_by_user_id ?? listingRow.requested_by_user_id,
+		audit_log_reason: fullRow.audit_log_reason ?? null,
+		jet_stream_seq: fullRow.jet_stream_seq ?? null,
+		jet_stream_lane: fullRow.jet_stream_lane ?? null,
+		attempts: fullRow.attempts ?? 0,
+		max_attempts: fullRow.max_attempts ?? 5,
+		run_at: fullRow.run_at ?? null,
+		cancel_requested: fullRow.cancel_requested ?? false,
+		context_link: fullRow.context_link ?? null,
+	};
+}
+
 export class JobLedgerRepository extends IJobLedgerRepository {
 	async createJob(input: CreateJobInput): Promise<void> {
 		const now = new Date();
@@ -74,6 +106,10 @@ export class JobLedgerRepository extends IJobLedgerRepository {
 		await batch.executeChunked(10, true);
 	}
 
+	async setJetStreamSeq(jobId: bigint, seq: string): Promise<void> {
+		await upsertOne(JobsById.patchByPk({job_id: jobId}, {jet_stream_seq: Db.set(seq)}));
+	}
+
 	async getJob(jobId: bigint): Promise<JobByIdRow | null> {
 		return fetchOne<JobByIdRow>(FETCH_JOB_BY_ID_QUERY.bind({job_id: jobId}));
 	}
@@ -81,10 +117,16 @@ export class JobLedgerRepository extends IJobLedgerRepository {
 	async markRunning(jobId: bigint, lane: string): Promise<void> {
 		const startedAt = new Date();
 		const status: JobStatus = 'running';
+		const existing = await this.getJob(jobId);
 		await upsertOne(
 			JobsById.patchByPk(
 				{job_id: jobId},
-				{status: Db.set(status), started_at: Db.set(startedAt), jet_stream_lane: Db.set(lane)},
+				{
+					status: Db.set(status),
+					started_at: Db.set(startedAt),
+					jet_stream_lane: Db.set(lane),
+					...(existing?.created_at ? {} : {created_at: Db.set(startedAt)}),
+				},
 			),
 		);
 		await upsertOne(JobsActive.patchByPk({job_id: jobId}, {status: Db.set(status), started_at: Db.set(startedAt)}));
@@ -214,7 +256,9 @@ export class JobLedgerRepository extends IJobLedgerRepository {
 					break;
 				}
 				const fullRow = await this.getJob(r.job_id);
-				if (fullRow) collected.push(fullRow);
+				if (!fullRow) continue;
+				const merged = mergeJobListingRow(fullRow, r);
+				if (merged) collected.push(merged);
 			}
 			if (nextCursor) break;
 		}
@@ -223,14 +267,26 @@ export class JobLedgerRepository extends IJobLedgerRepository {
 
 	async listActiveJobs(): Promise<Array<JobByIdRow>> {
 		const activeRows = await fetchMany<JobActiveRow>(ACTIVE_JOBS_QUERY.bind({}));
-		const fullRows = await Promise.all(activeRows.map((r) => this.getJob(r.job_id)));
+		const fullRows = await Promise.all(
+			activeRows.map(async (r) => {
+				const fullRow = await this.getJob(r.job_id);
+				if (!fullRow) return null;
+				return mergeJobListingRow(fullRow, r);
+			}),
+		);
 		return fullRows.filter((r): r is JobByIdRow => r !== null);
 	}
 
 	async listActiveJobsByTaskType(taskType: string): Promise<Array<JobByIdRow>> {
 		const activeRows = await fetchMany<JobActiveRow>(ACTIVE_JOBS_QUERY.bind({}));
 		const matching = activeRows.filter((r) => r.task_type === taskType);
-		const fullRows = await Promise.all(matching.map((r) => this.getJob(r.job_id)));
+		const fullRows = await Promise.all(
+			matching.map(async (r) => {
+				const fullRow = await this.getJob(r.job_id);
+				if (!fullRow) return null;
+				return mergeJobListingRow(fullRow, r);
+			}),
+		);
 		return fullRows.filter((r): r is JobByIdRow => r !== null);
 	}
 }
