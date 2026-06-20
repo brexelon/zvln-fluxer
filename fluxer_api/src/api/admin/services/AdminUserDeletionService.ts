@@ -7,6 +7,7 @@ import {UnknownUserError} from '@fluxer/errors/src/domains/user/UnknownUserError
 import type {
 	BulkScheduleUserDeletionRequest,
 	DeleteAccountImmediatelyRequest,
+	DeleteAllUserDataRequest,
 	ScheduleAccountDeletionRequest,
 } from '@fluxer/schema/src/domains/admin/AdminUserSchemas';
 import type Stripe from 'stripe';
@@ -22,6 +23,11 @@ import type {ReportService} from '../../report/ReportService';
 import {getReportSearchService} from '../../SearchFactory';
 import {clearPendingDeletion, reschedulePendingDeletion} from '../../user/services/PendingDeletionCoordinator';
 import {mapUserToAdminResponse} from '../models/UserTypes';
+import {
+	processUserDeletion,
+	resolveUserDeletionDependencies,
+} from '../../user/services/UserDeletionService';
+import {createUserCacheService} from '../../middleware/ServiceSingletons';
 import type {AdminAuditService} from './AdminAuditService';
 import type {AdminBanManagementService} from './AdminBanManagementService';
 import type {AdminUserUpdatePropagator} from './AdminUserUpdatePropagator';
@@ -289,6 +295,52 @@ export class AdminUserDeletionService {
 			action: 'delete_immediately',
 			auditLogReason,
 			metadata: new Map([['reason_code', data.reason_code.toString()]]),
+		});
+		return {
+			user: await mapUserToAdminResponse(updatedUser, cacheService, acls),
+		};
+	}
+
+	async deleteAllUserData(
+		data: DeleteAllUserDataRequest,
+		adminUserId: UserID,
+		auditLogReason: string | null,
+		acls: ReadonlySet<string>,
+	) {
+		const {users: userRepository, cache: cacheService, snowflake, worker} = this.deps.apiContext.services;
+		const {auditService} = this.deps;
+		const userId = createUserID(data.user_id);
+		const user = await userRepository.findUnique(userId);
+		if (!user) {
+			throw new UnknownUserError();
+		}
+		await AuthSession.terminateAllUserSessions(this.deps.apiContext, userId);
+		await processUserDeletion(
+			userId,
+			user.deletionReasonCode ?? DeletionReasons.OTHER,
+			resolveUserDeletionDependencies({
+				userCacheService: createUserCacheService(),
+				snowflakeService: snowflake,
+				stripe: this.deps.stripe,
+				workerService: worker,
+			}),
+		);
+		if (user.pendingDeletionAt) {
+			await clearPendingDeletion({
+				userId,
+				pendingDeletionAt: user.pendingDeletionAt,
+				userRepository,
+				deletionQueue: this.deps.kvDeletionQueue,
+			});
+		}
+		const updatedUser = (await userRepository.findUnique(userId)) ?? user;
+		await auditService.createAuditLog({
+			adminUserId,
+			targetType: 'user',
+			targetId: data.user_id,
+			action: 'delete_all_user_data',
+			auditLogReason,
+			metadata: new Map(),
 		});
 		return {
 			user: await mapUserToAdminResponse(updatedUser, cacheService, acls),

@@ -23,7 +23,17 @@ import type {IStorageService} from '../../infrastructure/IStorageService';
 import type {UserCacheService} from '../../infrastructure/UserCacheService';
 import {Logger} from '../../Logger';
 import {createRequestCache} from '../../middleware/RequestCacheMiddleware';
-import {getBillingRepository} from '../../middleware/ServiceRegistry';
+import {getBillingRepository, getGatewayService, getWorkerService} from '../../middleware/ServiceRegistry';
+import {
+	getApplicationRepository,
+	getChannelRepository,
+	getFavoriteMemeRepository,
+	getGuildRepository,
+	getOAuth2TokenRepository,
+	getPurgeQueue,
+	getStorageService,
+	getUserRepository,
+} from '../../middleware/ServiceSingletons';
 import type {ApplicationRepository} from '../../oauth/repositories/ApplicationRepository';
 import type {OAuth2TokenRepository} from '../../oauth/repositories/OAuth2TokenRepository';
 import type {WorkerTaskName} from '../../worker/WorkerLaneConfig';
@@ -32,7 +42,7 @@ import {allocateDeletedUserIdentity} from '../../utils/DeletedUserIdentityUtils'
 
 const CHUNK_SIZE = 100;
 
-interface UserDeletionDependencies {
+export interface UserDeletionDependencies {
 	userRepository: UserRepository;
 	guildRepository: GuildRepository;
 	channelRepository: ChannelRepository;
@@ -464,4 +474,27 @@ export async function processUserDeletion(
 	);
 	await userCacheService.setUserPartialResponseFromUser(anonymisedUser);
 	Logger.debug({userId, deletionReasonCode}, 'User account anonymization completed successfully');
+}
+
+export function resolveUserDeletionDependencies(params: {
+	userCacheService: UserCacheService;
+	snowflakeService: ISnowflakeService;
+	stripe: Stripe | null;
+	workerService: IWorkerService<WorkerTaskName>;
+}): UserDeletionDependencies {
+	return {
+		userRepository: getUserRepository(),
+		guildRepository: getGuildRepository(),
+		channelRepository: getChannelRepository(),
+		favoriteMemeRepository: getFavoriteMemeRepository(),
+		oauth2TokenRepository: getOAuth2TokenRepository(),
+		storageService: getStorageService(),
+		purgeQueue: getPurgeQueue(),
+		userCacheService: params.userCacheService,
+		gatewayService: getGatewayService(),
+		snowflakeService: params.snowflakeService,
+		stripe: params.stripe,
+		applicationRepository: getApplicationRepository(),
+		workerService: params.workerService,
+	};
 }

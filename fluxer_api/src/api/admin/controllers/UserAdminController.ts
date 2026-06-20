@@ -7,6 +7,7 @@ import {
 	CancelBulkMessageDeletionRequest,
 	ChangeDobRequest,
 	DeleteAccountImmediatelyRequest,
+	DeleteAllUserDataRequest,
 	ChangeEmailRequest,
 	ChangeUsernameRequest,
 	ClearUserFieldsRequest,
@@ -640,6 +641,36 @@ export function UserAdminController(app: HonoApp) {
 			const adminUserAcls = ctx.get('adminUserAcls');
 			return ctx.json(
 				await adminService.userService.deletionService.deleteAccountImmediately(
+					ctx.req.valid('json'),
+					adminUserId,
+					auditLogReason,
+					adminUserAcls,
+				),
+			);
+		},
+	);
+	app.post(
+		'/admin/users/delete-all-user-data',
+		RateLimitMiddleware(RateLimitConfigs.ADMIN_USER_MODIFY),
+		requireAdminACL(AdminACLs.USER_DELETE),
+		Validator('json', DeleteAllUserDataRequest),
+		OpenAPI({
+			operationId: 'delete_all_user_data',
+			summary: 'Delete all user data',
+			responseSchema: UserMutationResponse,
+			statusCode: 200,
+			security: 'adminApiKey',
+			tags: 'Admin',
+			description:
+				'Permanently purges all of a user\'s associated data from the database by running the full account deletion pipeline immediately. Creates an audit log entry. Requires USER_DELETE permission.',
+		}),
+		async (ctx) => {
+			const adminService = ctx.get('adminService');
+			const adminUserId = ctx.get('adminUserId');
+			const auditLogReason = ctx.get('auditLogReason');
+			const adminUserAcls = ctx.get('adminUserAcls');
+			return ctx.json(
+				await adminService.userService.deletionService.deleteAllUserData(
 					ctx.req.valid('json'),
 					adminUserId,
 					auditLogReason,

@@ -356,6 +356,12 @@ export const DeleteAccountImmediatelyRequest = z.object({
 
 export type DeleteAccountImmediatelyRequest = z.infer<typeof DeleteAccountImmediatelyRequest>;
 
+export const DeleteAllUserDataRequest = z.object({
+	user_id: SnowflakeType.describe('ID of the user whose data should be purged from the database'),
+});
+
+export type DeleteAllUserDataRequest = z.infer<typeof DeleteAllUserDataRequest>;
+
 export const SetUserAclsRequest = z.object({
 	user_id: SnowflakeType.describe('ID of the user to set ACLs for'),
 	acls: z.array(createStringType(1, 64)).max(100).describe('List of access control permissions to assign'),

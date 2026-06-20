@@ -298,6 +298,16 @@ pub async fn dispatch(
                 "Failed to delete account",
             )
         }
+        "delete_all_user_data" => {
+            let private_reason = get("private_reason");
+            DispatchOutcome::from_result(
+                client
+                    .delete_all_user_data(user_id, private_reason.as_deref())
+                    .await,
+                "All user data deleted from the database",
+                "Failed to delete all user data",
+            )
+        }
         "change_dob" => {
             let Some(dob) = get("date_of_birth") else {
                 return DispatchOutcome::error("Date of birth is required");

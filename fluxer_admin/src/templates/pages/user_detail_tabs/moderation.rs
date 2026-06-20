@@ -72,6 +72,7 @@ pub fn moderation_tab(
             }
             @if can_delete_user {
                 (delete_immediately_card(base, user, csrf_token))
+                (delete_all_user_data_card(base, user, csrf_token))
             }
             @if can_delete_all_messages {
                 (delete_all_messages_card(base, user, csrf_token, delete_all_messages_dry_run))
@@ -84,6 +85,13 @@ pub fn moderation_tab(
 }
 
 fn delete_immediately_card(base: &str, user: &AdminUser, csrf_token: &str) -> Markup {
+    let action_url = format!("{base}/users/{}?action=delete_immediately&tab=moderation", user.id);
+    let confirm_message = format!(
+        "Are you sure you want to immediately delete the account for @{}? \
+         This permanently deletes the account without a grace period and queues all data for deletion. \
+         This cannot be undone.",
+        user.username
+    );
     html! {
         (card_with_header("Immediate Account Deletion", html! {
             div class="space-y-4" {
@@ -96,11 +104,12 @@ fn delete_immediately_card(base: &str, user: &AdminUser, csrf_token: &str) -> Ma
                     }
                 }
                 form method="post"
-                    id="delete-immediately-form"
-                    data-admin-toast="false"
-                    hx-boost="false"
-                    onsubmit="return false;"
-                    action={(base) "/users/" (user.id) "?action=delete_immediately&tab=moderation"} {
+                    action=(action_url)
+                    hx-post=(action_url)
+                    hx-target="#flash-container"
+                    hx-swap="none"
+                    hx-push-url="false"
+                    onsubmit=(format!("return confirm('{}');", confirm_message.replace('\'', "\\'"))) {
                     (csrf_input(csrf_token))
                     div class="space-y-3" {
                         (form_label("Reason"))
@@ -128,68 +137,47 @@ fn delete_immediately_card(base: &str, user: &AdminUser, csrf_token: &str) -> Ma
                                    focus:border-brand-primary focus:outline-none \
                                    focus:ring-1 focus:ring-brand-primary";
                         (form_actions(html! {
-                            button type="button"
-                                id="delete-immediately-open"
-                                class="inline-flex items-center justify-center gap-2 font-medium \
-                                       rounded-lg transition-all duration-150 focus:outline-none \
-                                       focus:ring-2 focus:ring-offset-2 w-fit px-4 py-2 text-base \
-                                       bg-red-600 text-white hover:bg-red-700 focus:ring-offset-white" {
-                                span { "Delete Account Immediately" }
-                            }
+                            (danger_button("Delete Account Immediately"))
                         }))
                     }
                 }
-                dialog id="delete-immediately-dialog"
-                    class="m-auto w-[min(100%-2rem,28rem)] max-w-md rounded-xl border \
-                           border-neutral-200 bg-white p-6 shadow-xl \
-                           backdrop:bg-black/40" {
-                    div class="space-y-4" {
-                        h2 class="text-lg font-semibold text-neutral-900" {
-                            "Confirm immediate account deletion"
-                        }
-                        p class="text-sm text-neutral-700" {
-                            "You are about to permanently delete the account "
-                            strong { "@" (user.username) }
-                            ". This cannot be undone."
-                        }
-                        p class="text-sm text-neutral-700" {
-                            "Type "
-                            code class="rounded bg-neutral-100 px-1 py-0.5 font-mono text-sm" {
-                                "DELETE"
-                            }
-                            " to confirm."
-                        }
-                        input type="text"
-                            id="delete-immediately-confirm-input"
-                            placeholder="DELETE"
-                            autocomplete="off"
-                            class="block w-full rounded-md border border-neutral-300 \
-                                   px-3 py-2 text-sm shadow-sm \
-                                   focus:border-red-500 focus:outline-none \
-                                   focus:ring-1 focus:ring-red-500";
-                        div class="flex justify-end gap-3" {
-                            button type="button"
-                                id="delete-immediately-cancel"
-                                class="inline-flex items-center justify-center gap-2 rounded-lg \
-                                       border border-neutral-300 bg-white px-4 py-2 text-sm \
-                                       font-medium text-neutral-700 transition-all duration-150 \
-                                       hover:border-neutral-400 hover:text-neutral-900 \
-                                       focus:outline-none focus:ring-2 focus:ring-brand-primary/20" {
-                                "Cancel"
-                            }
-                            button type="button"
-                                id="delete-immediately-confirm"
-                                disabled
-                                class="inline-flex items-center justify-center gap-2 rounded-lg \
-                                       bg-red-600 px-4 py-2 text-sm font-medium text-white \
-                                       transition-all duration-150 hover:bg-red-700 \
-                                       focus:outline-none focus:ring-2 focus:ring-red-600 \
-                                       focus:ring-offset-2 disabled:cursor-not-allowed \
-                                       disabled:opacity-50" {
-                                "Delete Account"
-                            }
-                        }
-                    }
+            }
+        }))
+    }
+}
+
+fn delete_all_user_data_card(base: &str, user: &AdminUser, csrf_token: &str) -> Markup {
+    let action_url = format!("{base}/users/{}?action=delete_all_user_data&tab=moderation", user.id);
+    let confirm_message = format!(
+        "Are you sure you want to delete all data for @{}? \
+         This permanently removes all associated data from the database and cannot be undone.",
+        user.username
+    );
+    html! {
+        (card_with_header("Delete All User Data", html! {
+            div class="space-y-4" {
+                p class="text-sm text-neutral-600" {
+                    "Run the full account deletion pipeline now and purge all of this user's associated data from the database. \
+                     Use this when you need to force-remove stored user data immediately."
+                }
+                form method="post"
+                    action=(action_url)
+                    hx-post=(action_url)
+                    hx-target="#flash-container"
+                    hx-swap="none"
+                    hx-push-url="false"
+                    onsubmit=(format!("return confirm('{}');", confirm_message.replace('\'', "\\'"))) {
+                    (csrf_input(csrf_token))
+                    (form_label("Private Reason (optional)"))
+                    input type="text" name="private_reason"
+                        placeholder="Enter private reason (audit log)..."
+                        class="block w-full rounded-md border border-neutral-300 \
+                               px-3 py-2 text-sm shadow-sm \
+                               focus:border-brand-primary focus:outline-none \
+                               focus:ring-1 focus:ring-brand-primary";
+                    (form_actions(html! {
+                        (danger_button("Delete All User Data"))
+                    }))
                 }
             }
         }))
