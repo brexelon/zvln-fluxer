@@ -48,6 +48,7 @@ import {Tooltip} from '@app/features/ui/tooltip/Tooltip';
 import userProfileModalStyles from '@app/features/user/components/modals/UserProfileModal.module.css';
 import {UserSettingsModal} from '@app/features/user/components/modals/UserSettingsModal';
 import {ProfileModalContent} from '@app/features/user/components/modals/user_profile_modal/ProfileModalContent';
+import type {ProfileTab} from '@app/features/user/components/modals/user_profile_modal/UserProfileModalShared';
 import {UserProfileLoadingSkeleton} from '@app/features/user/components/profile/UserProfileLoadingSkeleton';
 import {useUserProfileSurfaceState} from '@app/features/user/hooks/useUserProfileSurfaceState';
 import type {Profile} from '@app/features/user/models/Profile';
@@ -133,6 +134,7 @@ export interface UserProfileModalProps {
 	userId: string;
 	guildId?: string;
 	autoFocusNote?: boolean;
+	initialTab?: ProfileTab;
 	disableEditProfile?: boolean;
 	previewOverrides?: ProfileDisplayUtils.ProfilePreviewOverrides;
 	previewUser?: User;
@@ -142,7 +144,7 @@ export interface UserProfileModalProps {
 type UserProfileModalComponent = React.FC<UserProfileModalProps>;
 
 export const UserProfileModal: UserProfileModalComponent = observer(
-	({userId, guildId, autoFocusNote, disableEditProfile, previewOverrides, previewUser, previewProfile}) => {
+	({userId, guildId, autoFocusNote, initialTab, disableEditProfile, previewOverrides, previewUser, previewProfile}) => {
 		const {i18n} = useLingui();
 		const storeUser = Users.getUser(userId);
 		const user = previewUser ?? storeUser;
@@ -829,6 +831,7 @@ export const UserProfileModal: UserProfileModalComponent = observer(
 							renderActionButtons={renderActionButtons}
 							showProfileDataWarning={shouldShowProfileDataWarning}
 							previewOverrides={previewOverrides}
+							initialTab={initialTab}
 							data-flx="user.user-profile-modal.profile-modal-content"
 						/>
 					)}

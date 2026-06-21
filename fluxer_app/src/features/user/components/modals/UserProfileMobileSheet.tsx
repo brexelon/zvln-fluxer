@@ -51,6 +51,7 @@ import {
 	getMutualCommunityDisplayItems,
 	getMutualGroupChannels,
 } from '@app/features/user/components/modals/user_profile_modal/MutualItemsUtils';
+import type {ProfileTab} from '@app/features/user/components/modals/user_profile_modal/UserProfileModalShared';
 import {UserProfileBadges} from '@app/features/user/components/popouts/UserProfileBadges';
 import {
 	UserProfileBio,
@@ -100,7 +101,7 @@ import {
 } from '@phosphor-icons/react';
 import {observer} from 'mobx-react-lite';
 import type React from 'react';
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 
 const UNBLOCK_USER_DESCRIPTOR = msg({
 	message: 'Unblock user',
@@ -114,7 +115,7 @@ const SEND_FRIEND_REQUEST_DESCRIPTOR = msg({
 const logger = new Logger('UserProfileMobileSheet');
 export const UserProfileMobileSheet: React.FC = observer(function UserProfileMobileSheet() {
 	const store = UserProfileMobile;
-	const {userId, guildId: explicitGuildId, autoFocusNote, isOpen} = store;
+	const {userId, guildId: explicitGuildId, autoFocusNote, initialTab, isOpen} = store;
 	const selectedChannelId = SelectedChannel.currentChannelId;
 	const selectedChannel = selectedChannelId ? Channels.getChannel(selectedChannelId) : null;
 	const channelGuildId =
@@ -213,6 +214,7 @@ export const UserProfileMobileSheet: React.FC = observer(function UserProfileMob
 			userNote={userNote}
 			guildId={guildId}
 			autoFocusNote={autoFocusNote}
+			initialTab={initialTab}
 			isLoading={shouldShowProfileLoading}
 			onClose={handleClose}
 			data-flx="user.user-profile-mobile-sheet.user-profile-mobile-sheet-content"
@@ -226,6 +228,7 @@ interface UserProfileMobileSheetContentProps {
 	userNote: string | null;
 	guildId?: string;
 	autoFocusNote?: boolean;
+	initialTab?: ProfileTab;
 	isLoading: boolean;
 	onClose: () => void;
 }
@@ -237,7 +240,7 @@ interface EmojiInfoState {
 }
 
 const UserProfileMobileSheetContent: React.FC<UserProfileMobileSheetContentProps> = observer(
-	function UserProfileMobileSheetContent({user, profile, userNote, guildId, autoFocusNote, isLoading, onClose}) {
+	function UserProfileMobileSheetContent({user, profile, userNote, guildId, autoFocusNote, initialTab, isLoading, onClose}) {
 		const {i18n} = useLingui();
 		const [noteSheetOpen, setNoteSheetOpen] = useState(false);
 		const [actionsSheetOpen, setActionsSheetOpen] = useState(false);
@@ -245,6 +248,7 @@ const UserProfileMobileSheetContent: React.FC<UserProfileMobileSheetContentProps
 		const [emojiInfoOpen, setEmojiInfoOpen] = useState(false);
 		const [selectedEmoji, setSelectedEmoji] = useState<EmojiInfoState | null>(null);
 		const [mutualSheetView, setMutualSheetView] = useState<'friends' | 'communities_groups' | null>(null);
+		const initialTabAppliedRef = useRef(false);
 		const hidePrivateDetails = StreamerMode.shouldHidePersonalInformation;
 		const isCurrentUser = user.id === Authentication.currentUserId;
 		const relationship = Relationships.getRelationship(user.id);
@@ -267,6 +271,18 @@ const UserProfileMobileSheetContent: React.FC<UserProfileMobileSheetContentProps
 		const mutualGroupsCount = mutualGroups.length;
 		const mutualCommunitiesGroupsCount = mutualCommunitiesCount + mutualGroupsCount;
 		const hasMutuals = mutualFriendsCount > 0 || mutualCommunitiesGroupsCount > 0;
+		useEffect(() => {
+			if (!initialTab || initialTabAppliedRef.current) {
+				return;
+			}
+			if (initialTab === 'mutual_friends' && mutualFriendsCount > 0) {
+				initialTabAppliedRef.current = true;
+				setMutualSheetView('friends');
+			} else if (initialTab === 'mutual_communities_groups' && mutualCommunitiesGroupsCount > 0) {
+				initialTabAppliedRef.current = true;
+				setMutualSheetView('communities_groups');
+			}
+		}, [initialTab, mutualFriendsCount, mutualCommunitiesGroupsCount]);
 		const hasGuildProfile = !!(profile?.guildId && profile?.guildMemberProfile);
 		const shouldShowGuildProfile = hasGuildProfile && !showGlobalProfile;
 		const displayMembership = shouldShowGuildProfile ? profileMembership : resolveProfileGuildMembership(null);

@@ -83,10 +83,10 @@ function measureUnwrappedTablistWidth(tablist: HTMLElement): number {
 }
 
 export const ProfileBody: React.FC<ProfileBodyProps> = observer(
-	({profile, user, userNote, autoFocusNote, noteRef, showProfileDataWarning}) => {
+	({profile, user, userNote, autoFocusNote, noteRef, showProfileDataWarning, initialTab}) => {
 		const {i18n} = useLingui();
 		const showMutualFriendsTab = !user.bot;
-		const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
+		const [activeTab, setActiveTab] = useState<ProfileTab>(() => initialTab ?? 'overview');
 		const handleTabChange = useCallback((tab: ProfileTab) => {
 			setActiveTab(tab);
 		}, []);
