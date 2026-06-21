@@ -21252,6 +21252,26 @@ msgstr "Mutual places"
 msgid "Mutual places ({count})"
 msgstr "Mutual places ({count})"
 
+#. Compact label on the user profile card popout for mutual friends count. Preserve {count}; it is inserted by code.
+#: src/features/user/components/modals/user_profile_modal/MutualItemsDescriptors.ts:48
+msgid "{count, plural, one {# Mutual Friend} other {# Mutual Friends}}"
+msgstr "{count, plural, one {# Mutual Friend} other {# Mutual Friends}}"
+
+#. Compact label on the user profile card popout for mutual communities count. Preserve {count}; it is inserted by code.
+#: src/features/user/components/modals/user_profile_modal/MutualItemsDescriptors.ts:53
+msgid "{count, plural, one {# Mutual Community} other {# Mutual Communities}}"
+msgstr "{count, plural, one {# Mutual Community} other {# Mutual Communities}}"
+
+#. Compact label on the user profile card popout for mutual groups count. Preserve {count}; it is inserted by code.
+#: src/features/user/components/modals/user_profile_modal/MutualItemsDescriptors.ts:58
+msgid "{count, plural, one {# Mutual Group} other {# Mutual Groups}}"
+msgstr "{count, plural, one {# Mutual Group} other {# Mutual Groups}}"
+
+#. Compact label on the user profile card popout for combined mutual groups and communities count. Preserve {count}; it is inserted by code.
+#: src/features/user/components/modals/user_profile_modal/MutualItemsDescriptors.ts:63
+msgid "{count, plural, one {# Mutual Place} other {# Mutual Places}}"
+msgstr "{count, plural, one {# Mutual Place} other {# Mutual Places}}"
+
 #. Short label in the application create modal. Keep it concise.
 #. Short label in the application info section. Keep it concise.
 #: src/features/user/components/modals/tabs/applications_tab/application_detail/ApplicationInfoSection.tsx:31

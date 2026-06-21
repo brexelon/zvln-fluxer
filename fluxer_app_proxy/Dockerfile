@@ -73,9 +73,10 @@ COPY fluxer_app/src/ ./fluxer_app/src/
 ENV BUILD_VERSION=${BUILD_VERSION} \
 	PUBLIC_ASSET_BASE_URL=${PUBLIC_ASSET_BASE_URL}
 
+# build:release extracts new i18n strings, compiles catalogs, then bundles the SPA.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
 	--mount=type=cache,target=/usr/local/cargo/git \
-	cd fluxer_app && pnpm build
+	cd fluxer_app && pnpm build:release
 
 # Extract the full SPA asset tree for local serving by the app proxy.
 FROM alpine:3.21 AS app-assets

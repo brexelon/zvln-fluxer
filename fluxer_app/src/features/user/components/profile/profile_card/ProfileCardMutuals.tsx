@@ -7,8 +7,8 @@ import {UserContextMenu} from '@app/features/ui/action_menu/UserContextMenu';
 import {AvatarStack} from '@app/features/ui/avatars/AvatarStack';
 import * as ContextMenuCommands from '@app/features/ui/commands/ContextMenuCommands';
 import {
-	getMutualItemsDescriptor,
-	MUTUAL_FRIENDS_COUNT_DESCRIPTOR,
+	getMutualItemsCompactDescriptor,
+	MUTUAL_FRIENDS_COMPACT_DESCRIPTOR,
 } from '@app/features/user/components/modals/user_profile_modal/MutualItemsDescriptors';
 import {
 	getSortedMutualCommunityDisplayItems,
@@ -108,14 +108,13 @@ export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({
 				? mutualGroupsCount
 				: mutualCommunitiesCount;
 	const placesLabel = i18n._(
-		getMutualItemsDescriptor({
+		getMutualItemsCompactDescriptor({
 			mutualCommunitiesCount,
 			mutualGroupsCount,
-			includeCount: true,
 		}),
 		{count: placesCount},
 	);
-	const friendsLabel = i18n._(MUTUAL_FRIENDS_COUNT_DESCRIPTOR, {count: mutualFriendsCount});
+	const friendsLabel = i18n._(MUTUAL_FRIENDS_COMPACT_DESCRIPTOR, {count: mutualFriendsCount});
 	const showFriendAvatars = hasMutualFriends;
 	const showPlaceIcons = hasMutualPlaces && !hasMutualFriends;
 	const friendAvatarMaxVisible = hasMutualPlaces ? 1 : 3;
