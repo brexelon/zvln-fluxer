@@ -266,7 +266,7 @@ class MemberSidebar {
 	}
 
 	handleListUpdate(params: MemberListUpdateParams): void {
-		const {guildId, listId, channelId} = params;
+		const {guildId, listId, channelId, ops} = params;
 		if (this.isMemberListUpdatesDisabled(guildId)) {
 			return;
 		}
@@ -276,6 +276,11 @@ class MemberSidebar {
 			existingGuildLists[listId] ??
 			(localStorageKey ? existingGuildLists[localStorageKey] : undefined) ??
 			(channelId ? existingGuildLists[channelId] : undefined);
+		if (ops.length > 0) {
+			this.clearPendingListUpdateBatch(guildId, listId);
+			this.applyListUpdate(params);
+			return;
+		}
 		if (!existingList?.hasReceivedInitialPayload || typeof window === 'undefined') {
 			this.applyListUpdate(params);
 			return;
@@ -519,6 +524,15 @@ class MemberSidebar {
 			listState.items = new Map();
 			listState.presences = new Map();
 			listState.customStatuses = new Map();
+			this.bumpListUpdateVersion(guildId, storageKey);
+			this.lists = {...this.lists, [guildId]: {...guildLists, [storageKey]: listState}};
+			return;
+		}
+		if (ops.length === 0) {
+			listState.memberCount = memberCount;
+			listState.onlineCount = onlineCount;
+			listState.groups = visibleGroups;
+			listState.hasReceivedInitialPayload = true;
 			this.bumpListUpdateVersion(guildId, storageKey);
 			this.lists = {...this.lists, [guildId]: {...guildLists, [storageKey]: listState}};
 			return;

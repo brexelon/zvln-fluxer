@@ -391,6 +391,7 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 	const pendingScrollMetricsRef = useRef<{scrollTop: number; clientHeight: number} | null>(null);
 	const scrollerRef = useRef<ScrollerHandle | null>(null);
 	const frozenSnapshotRef = useRef<FrozenMemberListSnapshot | null>(null);
+	const wasPausedRef = useRef(false);
 	const [renderWindowRanges, setRenderWindowRanges] = useState<NormalizedMemberListRanges>(INITIAL_RENDER_RANGES);
 	const [deferAvatarLoad, setDeferAvatarLoad] = useState(false);
 	const memberListIdentityKey = MemberSidebar.getListIdentityKey(guild.id, channel.id);
@@ -615,7 +616,14 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 	}, [memberListIdentityKey, guild.id]);
 	useEffect(() => {
 		if (isSubscriptionPaused) {
+			wasPausedRef.current = true;
 			return;
+		}
+		if (wasPausedRef.current) {
+			wasPausedRef.current = false;
+			subscriptionRangesRef.current = INITIAL_SUBSCRIPTION_RANGES;
+			renderRangesRef.current = INITIAL_RENDER_RANGES;
+			setRenderWindowRanges(INITIAL_RENDER_RANGES);
 		}
 		let innerFrame: number | null = null;
 		const frame = window.requestAnimationFrame(() => {
@@ -632,25 +640,27 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 	}, [isSubscriptionPaused, refreshVisibleMemberList, totalRows]);
 	useEffect(() => {
 		return reaction(
-			() => GatewayConnection.resumeGeneration,
-			() => {
-				if (isSubscriptionPaused) {
+			() => Window.focused && Window.visible,
+			(active) => {
+				if (!active || isSubscriptionPaused) {
 					return;
 				}
-				refreshVisibleMemberList({force: true});
+				MemberSidebar.flushPendingListUpdates();
+				window.requestAnimationFrame(() => {
+					refreshVisibleMemberList({force: true});
+				});
 			},
 		);
 	}, [isSubscriptionPaused, refreshVisibleMemberList]);
 	useEffect(() => {
 		return reaction(
-			() => Window.focused,
-			(focused) => {
-				if (!focused || isSubscriptionPaused) {
+			() => GatewayConnection.resumeGeneration,
+			() => {
+				if (isSubscriptionPaused) {
 					return;
 				}
-				window.requestAnimationFrame(() => {
-					refreshVisibleMemberList({force: true});
-				});
+				MemberSidebar.flushPendingListUpdates();
+				refreshVisibleMemberList({force: true});
 			},
 		);
 	}, [isSubscriptionPaused, refreshVisibleMemberList]);
@@ -986,12 +996,14 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 			);
 		}
 	}
-	frozenSnapshotRef.current = {
-		channelId: memberListIdentityKey,
-		estimatedContentSize: contentHeight,
-		virtualContentHeight,
-		rows: frozenRows,
-	};
+	if (MemberSidebar.areItemsLoadedForRanges(guild.id, channel.id, subscriptionRangesRef.current)) {
+		frozenSnapshotRef.current = {
+			channelId: memberListIdentityKey,
+			estimatedContentSize: contentHeight,
+			virtualContentHeight,
+			rows: frozenRows,
+		};
+	}
 	return (
 		<MemberListContainer
 			channelId={channel.id}

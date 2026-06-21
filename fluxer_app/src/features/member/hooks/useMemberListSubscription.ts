@@ -32,15 +32,15 @@ interface UseMemberListSubscriptionResult {
 	isPaused: boolean;
 }
 
-function subscribeToWindowFocus(onChange: () => void): () => void {
+function subscribeToWindowActive(onChange: () => void): () => void {
 	return reaction(
-		() => Window.focused,
+		() => Window.focused && Window.visible,
 		() => onChange(),
 	);
 }
 
-function getWindowFocusSnapshot(): boolean {
-	return Window.focused;
+function getWindowActiveSnapshot(): boolean {
+	return Window.focused && Window.visible;
 }
 
 let nextMemberListSubscriptionOwnerId = 0;
@@ -55,12 +55,12 @@ export function useMemberListSubscription({
 	channelId,
 	enabled,
 }: UseMemberListSubscriptionOptions): UseMemberListSubscriptionResult {
-	const isWindowFocused = useSyncExternalStore(subscribeToWindowFocus, getWindowFocusSnapshot, getWindowFocusSnapshot);
-	const isPaused = enabled && !isWindowFocused;
+	const isWindowActive = useSyncExternalStore(subscribeToWindowActive, getWindowActiveSnapshot, getWindowActiveSnapshot);
+	const isPaused = enabled && !isWindowActive;
 	const subscriptionSnapshotRef = useRef(
 		createMemberListSubscriptionSnapshot({
 			enabled,
-			paused: enabled && !Window.focused,
+			paused: enabled && !(Window.focused && Window.visible),
 			desiredRanges: [INITIAL_MEMBER_LIST_SUBSCRIPTION_RANGE],
 		}),
 	);
@@ -325,20 +325,25 @@ export function useMemberListSubscription({
 		if (!enabled) {
 			return;
 		}
-		if (isWindowFocused) {
+		if (isWindowActive) {
+			MemberSidebar.flushPendingListUpdates();
 			MemberSidebar.claimMemberListSubscription(guildId, channelId, ownerId);
 			sendSubscriptionEvent({type: 'memberListSubscription.resumed'});
 			if (pendingResumeWhilePausedRef.current) {
 				pendingResumeWhilePausedRef.current = false;
 				sendSubscriptionEvent({type: 'memberListSubscription.subscriptionCleared'});
 			}
+			sendSubscriptionEvent({
+				type: 'memberListSubscription.rangesRequested',
+				ranges: [INITIAL_MEMBER_LIST_SUBSCRIPTION_RANGE],
+			});
 			resubscribe();
 			return;
 		}
 		pauseSubscription();
-	}, [guildId, channelId, enabled, isWindowFocused, ownerId, pauseSubscription, resubscribe, sendSubscriptionEvent]);
+	}, [guildId, channelId, enabled, isWindowActive, ownerId, pauseSubscription, resubscribe, sendSubscriptionEvent]);
 	useEffect(() => {
-		if (!enabled || !isWindowFocused) {
+		if (!enabled || !isWindowActive) {
 			return;
 		}
 		const scheduleRetry = () => {
@@ -414,7 +419,7 @@ export function useMemberListSubscription({
 		guildId,
 		channelId,
 		enabled,
-		isWindowFocused,
+		isWindowActive,
 		attemptSubscribe,
 		clearRetryTimer,
 		isMemberListFresh,
@@ -426,13 +431,13 @@ export function useMemberListSubscription({
 		const {isActive, isSubscribed, desiredRanges} = readSubscriptionModel();
 		if (
 			enabled &&
-			isWindowFocused &&
+			isWindowActive &&
 			isActive &&
 			!isSubscribed &&
 			MemberSidebar.isActiveMemberListSubscriptionOwner(guildId, channelId, ownerId)
 		) {
 			queueSubscribe(desiredRanges);
 		}
-	}, [guildId, channelId, enabled, isWindowFocused, ownerId, queueSubscribe, readSubscriptionModel]);
+	}, [guildId, channelId, enabled, isWindowActive, ownerId, queueSubscribe, readSubscriptionModel]);
 	return {subscribe, forceSubscribe, unsubscribe, resubscribe, isPaused};
 }
