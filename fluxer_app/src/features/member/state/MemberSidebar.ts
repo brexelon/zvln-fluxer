@@ -885,13 +885,18 @@ class MemberSidebar {
 		this.activeMemberListSubscription = {guildId, channelId, ownerId, source};
 	}
 
-	releaseMemberListSubscription(guildId: string, channelId: string, ownerId: string): void {
+	releaseMemberListSubscription(
+		guildId: string,
+		channelId: string,
+		ownerId: string,
+		updateGateway = false,
+	): void {
 		this.clearChannelSubscription({
 			guildId,
 			channelId,
 			clearLocalSubscription: true,
 			ownerId,
-			updateGateway: false,
+			updateGateway,
 		});
 	}
 

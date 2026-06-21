@@ -212,7 +212,7 @@ export function useMemberListSubscription({
 		const hasLocalSubscription = ownsSubscription && MemberSidebar.getSubscribedRanges(guildId, channelId).length > 0;
 		sendSubscriptionEvent({type: 'memberListSubscription.paused'});
 		if (model.isSubscribed || hasLocalSubscription) {
-			MemberSidebar.releaseMemberListSubscription(guildId, channelId, ownerId);
+			MemberSidebar.releaseMemberListSubscription(guildId, channelId, ownerId, true);
 		}
 	}, [guildId, channelId, ownerId, clearRetryTimer, readSubscriptionModel, sendSubscriptionEvent]);
 	const resubscribe = useCallback(() => {
