@@ -38,6 +38,7 @@ import {UserProfileBadges} from '@app/features/user/components/popouts/UserProfi
 import userProfilePopoutStyles from '@app/features/user/components/popouts/UserProfilePopout.module.css';
 import {UserProfilePreviewBio} from '@app/features/user/components/popouts/UserProfileShared';
 import {ProfileCardBanner} from '@app/features/user/components/profile/profile_card/ProfileCardBanner';
+import {ProfileCardBannerActions} from '@app/features/user/components/profile/profile_card/ProfileCardBannerActions';
 import {ProfileCardContent} from '@app/features/user/components/profile/profile_card/ProfileCardContent';
 import {ProfileCardFooter} from '@app/features/user/components/profile/profile_card/ProfileCardFooter';
 import {ProfileCardLayout} from '@app/features/user/components/profile/profile_card/ProfileCardLayout';
@@ -528,6 +529,18 @@ export const UserAreaPopout = observer(() => {
 						disablePresence={false}
 						isClickable={true}
 						onAvatarClick={openUserProfile}
+						bannerActions={
+							profileContext ? (
+								<ProfileCardBannerActions
+									user={currentUser}
+									profile={profile}
+									profileContext={profileContext}
+									isCurrentUser={true}
+									onViewFullProfile={openUserProfile}
+									data-flx="app.floating.user-area-popout.profile-card-banner-actions"
+								/>
+							) : undefined
+						}
 						data-flx="app.floating.user-area-popout.profile-card-banner"
 					/>
 					<UserProfileBadges
