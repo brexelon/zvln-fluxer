@@ -342,16 +342,14 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 	const pendingScrollMetricsRef = useRef<{scrollTop: number; clientHeight: number} | null>(null);
 	const scrollerRef = useRef<ScrollerHandle | null>(null);
 	const frozenSnapshotRef = useRef<FrozenMemberListSnapshot | null>(null);
-	const wasSubscriptionPausedRef = useRef(false);
 	const [renderWindowRanges, setRenderWindowRanges] = useState<NormalizedMemberListRanges>(INITIAL_RENDER_RANGES);
 	const [deferAvatarLoad, setDeferAvatarLoad] = useState(false);
-	const [keepFrozenAfterResume, setKeepFrozenAfterResume] = useState(false);
 	const memberListIdentityKey = MemberSidebar.getListIdentityKey(guild.id, channel.id);
 	const memberListUpdatesDisabled = (guild.disabledOperations & GuildOperations.MEMBER_LIST_UPDATES) !== 0;
 	const currentUserId = Authentication.currentUserId;
 	const lacksMemberViewPermission =
 		currentUserId != null && !PermissionUtils.can(Permissions.VIEW_CHANNEL_MEMBERS, currentUserId, channel.toJSON());
-	const {subscribe, resubscribe, isPaused: isSubscriptionPaused} = useMemberListSubscription({
+	const {subscribe, forceSubscribe, resubscribe, isPaused: isSubscriptionPaused} = useMemberListSubscription({
 		guildId: guild.id,
 		channelId: channel.id,
 		enabled: !memberListUpdatesDisabled && !lacksMemberViewPermission,
@@ -400,17 +398,6 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 		[memberListState?.hasReceivedInitialPayload, renderWindowRanges, subscribedRanges, totalRows],
 	);
 	const {isInitialLoading, renderRanges} = viewportModel;
-	const canThawFrozenMemberList =
-		!isSubscriptionPaused &&
-		memberListState != null &&
-		memberListState.hasReceivedInitialPayload &&
-		areNormalizedMemberListRangesCovered(subscriptionRangesRef.current, subscribedRanges) &&
-		MemberSidebar.areItemsLoadedForRanges(guild.id, channel.id, subscriptionRangesRef.current);
-	const shouldStartResumeFreeze =
-		!isSubscriptionPaused &&
-		wasSubscriptionPausedRef.current &&
-		frozenSnapshotRef.current?.channelId === memberListIdentityKey;
-	const shouldKeepFrozenAfterResume = (keepFrozenAfterResume || shouldStartResumeFreeze) && !canThawFrozenMemberList;
 	const getGroupName = useCallback(
 		(groupId: string) => {
 			if (groupId === 'online') {
@@ -503,6 +490,50 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 		}
 		scheduleRangeUpdate(scrollerState.scrollTop, scrollerState.offsetHeight);
 	}, [scheduleRangeUpdate]);
+	const refreshVisibleMemberList = useCallback(
+		(options?: {force?: boolean}) => {
+			const scrollerState = scrollerRef.current?.getScrollerState();
+			if (!scrollerState) {
+				resubscribe();
+				return;
+			}
+			const scrollTop = scrollerState.scrollTop;
+			const clientHeight = scrollerState.offsetHeight;
+			const nextSubscriptionRanges = buildMemberListRangeWindow({
+				scrollTop,
+				clientHeight,
+				rowHeight: scaledMemberItemHeight,
+				rowOffsets,
+				bufferRows: SUBSCRIPTION_BUFFER_ROWS,
+				overscanPages: SUBSCRIPTION_OVERSCAN_PAGES,
+				totalRows: totalRows > 0 ? totalRows : undefined,
+			});
+			const nextRenderRanges = buildMemberListRenderWindow({
+				scrollTop,
+				clientHeight,
+				rowHeight: scaledMemberItemHeight,
+				rowOffsets,
+				bufferRows: RENDER_BUFFER_ROWS,
+				totalRows: totalRows > 0 ? totalRows : undefined,
+			});
+			renderRangesRef.current = nextRenderRanges;
+			setRenderWindowRanges(nextRenderRanges);
+			subscriptionRangesRef.current = nextSubscriptionRanges;
+			if (options?.force) {
+				forceSubscribe(nextSubscriptionRanges);
+				return;
+			}
+			subscribe(nextSubscriptionRanges);
+		},
+		[
+			forceSubscribe,
+			resubscribe,
+			rowOffsets,
+			scaledMemberItemHeight,
+			subscribe,
+			totalRows,
+		],
+	);
 	const handleScroll = useCallback(
 		(event: UIEvent<HTMLDivElement>) => {
 			const target = event.currentTarget;
@@ -519,8 +550,6 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 		const initialRenderRanges = INITIAL_RENDER_RANGES;
 		subscriptionRangesRef.current = initialSubscriptionRanges;
 		renderRangesRef.current = initialRenderRanges;
-		wasSubscriptionPausedRef.current = false;
-		setKeepFrozenAfterResume(false);
 		setRenderWindowRanges(initialRenderRanges);
 	}, [memberListIdentityKey, guild.id]);
 	useEffect(() => {
@@ -530,7 +559,7 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 		let innerFrame: number | null = null;
 		const frame = window.requestAnimationFrame(() => {
 			innerFrame = window.requestAnimationFrame(() => {
-				scheduleRangeUpdateFromScroller();
+				refreshVisibleMemberList({force: true});
 			});
 		});
 		return () => {
@@ -539,28 +568,7 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 				window.cancelAnimationFrame(innerFrame);
 			}
 		};
-	}, [isSubscriptionPaused, scheduleRangeUpdateFromScroller, totalRows]);
-	useEffect(() => {
-		if (isSubscriptionPaused) {
-			wasSubscriptionPausedRef.current = true;
-			setKeepFrozenAfterResume(false);
-			return;
-		}
-		if (
-			wasSubscriptionPausedRef.current &&
-			frozenSnapshotRef.current?.channelId === memberListIdentityKey &&
-			!canThawFrozenMemberList
-		) {
-			setKeepFrozenAfterResume(true);
-		}
-		wasSubscriptionPausedRef.current = false;
-	}, [memberListIdentityKey, isSubscriptionPaused, canThawFrozenMemberList]);
-	useEffect(() => {
-		if (keepFrozenAfterResume && canThawFrozenMemberList) {
-			setKeepFrozenAfterResume(false);
-			scheduleRangeUpdateFromScroller();
-		}
-	}, [keepFrozenAfterResume, canThawFrozenMemberList, scheduleRangeUpdateFromScroller]);
+	}, [isSubscriptionPaused, refreshVisibleMemberList, totalRows]);
 	useEffect(() => {
 		return reaction(
 			() => GatewayConnection.resumeGeneration,
@@ -568,11 +576,10 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 				if (isSubscriptionPaused) {
 					return;
 				}
-				resubscribe();
-				scheduleRangeUpdateFromScroller();
+				refreshVisibleMemberList({force: true});
 			},
 		);
-	}, [isSubscriptionPaused, resubscribe, scheduleRangeUpdateFromScroller]);
+	}, [isSubscriptionPaused, refreshVisibleMemberList]);
 	useEffect(() => {
 		return reaction(
 			() => Window.focused,
@@ -580,13 +587,12 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 				if (!focused || isSubscriptionPaused) {
 					return;
 				}
-				resubscribe();
 				window.requestAnimationFrame(() => {
-					scheduleRangeUpdateFromScroller();
+					refreshVisibleMemberList({force: true});
 				});
 			},
 		);
-	}, [isSubscriptionPaused, resubscribe, scheduleRangeUpdateFromScroller]);
+	}, [isSubscriptionPaused, refreshVisibleMemberList]);
 	useEffect(() => {
 		return () => {
 			if (scrollFrameRef.current != null) {
@@ -634,15 +640,6 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 				snapshot={currentFrozenSnapshot}
 				scrollerRef={scrollerRef}
 				data-flx="channel.channel-members.lazy-member-list.frozen-member-list"
-			/>
-		);
-	}
-	if (shouldKeepFrozenAfterResume && frozenSnapshotRef.current?.channelId === memberListIdentityKey) {
-		return (
-			<FrozenMemberList
-				snapshot={frozenSnapshotRef.current}
-				scrollerRef={scrollerRef}
-				data-flx="channel.channel-members.lazy-member-list.frozen-member-list--2"
 			/>
 		);
 	}

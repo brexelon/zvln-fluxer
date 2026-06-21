@@ -26,6 +26,7 @@ interface UseMemberListSubscriptionOptions {
 
 interface UseMemberListSubscriptionResult {
 	subscribe: (ranges: Array<[number, number]>) => void;
+	forceSubscribe: (ranges: Array<[number, number]>) => void;
 	unsubscribe: () => void;
 	resubscribe: () => void;
 	isPaused: boolean;
@@ -167,6 +168,17 @@ export function useMemberListSubscription({
 			queueSubscribe(ranges);
 		},
 		[queueSubscribe],
+	);
+	const forceSubscribe = useCallback(
+		(ranges: MemberListRanges) => {
+			const normalizedRanges = normalizeMemberListRanges(ranges);
+			sendSubscriptionEvent({
+				type: 'memberListSubscription.rangesRequested',
+				ranges: normalizedRanges,
+			});
+			attemptSubscribe(normalizedRanges, true);
+		},
+		[attemptSubscribe, sendSubscriptionEvent],
 	);
 	const clearSubscription = useCallback(
 		(updateGateway: boolean) => {
@@ -422,5 +434,5 @@ export function useMemberListSubscription({
 			queueSubscribe(desiredRanges);
 		}
 	}, [guildId, channelId, enabled, isWindowFocused, ownerId, queueSubscribe, readSubscriptionModel]);
-	return {subscribe, unsubscribe, resubscribe, isPaused};
+	return {subscribe, forceSubscribe, unsubscribe, resubscribe, isPaused};
 }
