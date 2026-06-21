@@ -37,6 +37,11 @@ export const MUTUAL_GROUPS_COUNT_DESCRIPTOR = msg({
 	comment:
 		'Short tab or button label for a list of mutual group DMs in the user profile modal. Preserve {count}; it is inserted by code.',
 });
+export const MUTUAL_FRIENDS_COUNT_DESCRIPTOR = msg({
+	message: 'Mutual friends ({count})',
+	comment:
+		'Short tab or button label for a list of mutual friends in the user profile modal. Preserve {count}; it is inserted by code.',
+});
 export const NO_MUTUAL_COMMUNITIES_FOUND_DESCRIPTOR = msg({
 	message: 'No mutual communities found.',
 	comment: 'Empty state in the user profile modal when no shared communities are available.',
