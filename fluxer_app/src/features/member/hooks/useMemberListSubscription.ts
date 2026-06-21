@@ -201,9 +201,6 @@ export function useMemberListSubscription({
 	const unsubscribe = useCallback(() => {
 		clearSubscription(true);
 	}, [clearSubscription]);
-	const releaseSubscription = useCallback(() => {
-		clearSubscription(false);
-	}, [clearSubscription]);
 	const pauseSubscription = useCallback(() => {
 		clearRetryTimer();
 		resyncBaselineVersionRef.current = null;
@@ -318,9 +315,12 @@ export function useMemberListSubscription({
 	]);
 	useEffect(() => {
 		return () => {
-			releaseSubscription();
+			// Tell the gateway to drop the subscription when the visible member list
+			// unmounts. A local-only release leaves the server thinking we're still
+			// subscribed, so returning to the same channel won't trigger a fresh SYNC.
+			unsubscribe();
 		};
-	}, [guildId, channelId, releaseSubscription]);
+	}, [guildId, channelId, unsubscribe]);
 	useEffect(() => {
 		if (!enabled) {
 			return;
