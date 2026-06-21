@@ -27,6 +27,7 @@ interface ProfileCardUserInfoProps {
 	onUsernameClick?: () => void;
 	actions?: React.ReactNode;
 	usernameActions?: React.ReactNode;
+	belowUsername?: React.ReactNode;
 }
 
 export const ProfileCardUserInfo: React.FC<ProfileCardUserInfoProps> = observer(
@@ -42,6 +43,7 @@ export const ProfileCardUserInfo: React.FC<ProfileCardUserInfoProps> = observer(
 		onUsernameClick,
 		actions,
 		usernameActions,
+		belowUsername,
 	}) => {
 		const displayNameRef = useRef<HTMLButtonElement>(null);
 		const isDisplayNameOverflowing = useTextOverflow(displayNameRef, {
@@ -117,17 +119,23 @@ export const ProfileCardUserInfo: React.FC<ProfileCardUserInfoProps> = observer(
 								{NicknameUtils.formatTagForStreamerMode(user.tag)}
 							</button>
 						</FocusRing>
+						{pronouns && (
+							<>
+								<span className={styles.usernameSeparator} aria-hidden="true">
+									•
+								</span>
+								<span className={styles.pronounsInline} data-flx="user.profile.profile-card.profile-card-user-info.pronouns-inline">
+									<span className={styles.srOnly} data-flx="user.profile.profile-card.profile-card-user-info.sr-only">
+										<Trans>Pronouns: </Trans>
+									</span>
+									{pronouns}
+								</span>
+							</>
+						)}
 						{usernameActions}
 					</div>
 				)}
-				{pronouns && (
-					<div className={styles.pronouns} data-flx="user.profile.profile-card.profile-card-user-info.pronouns">
-						<span className={styles.srOnly} data-flx="user.profile.profile-card.profile-card-user-info.sr-only">
-							<Trans>Pronouns: </Trans>
-						</span>
-						{pronouns}
-					</div>
-				)}
+				{belowUsername}
 			</div>
 		);
 	},

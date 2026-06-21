@@ -50,6 +50,7 @@ import {ProfileCardBannerActions} from '@app/features/user/components/profile/pr
 import {ProfileCardContent} from '@app/features/user/components/profile/profile_card/ProfileCardContent';
 import {ProfileCardFooter} from '@app/features/user/components/profile/profile_card/ProfileCardFooter';
 import {ProfileCardLayout} from '@app/features/user/components/profile/profile_card/ProfileCardLayout';
+import {ProfileCardMutuals} from '@app/features/user/components/profile/profile_card/ProfileCardMutuals';
 import {ProfileCardUserInfo} from '@app/features/user/components/profile/profile_card/ProfileCardUserInfo';
 import {UserProfileLoadingSkeleton} from '@app/features/user/components/profile/UserProfileLoadingSkeleton';
 import {useProfileCardDisplayState} from '@app/features/user/components/profile/useProfileCardDisplayState';
@@ -343,6 +344,20 @@ export const UserProfilePopout: React.FC<UserProfilePopoutProps> = observer(
 											isHovering={isHovering}
 											onNoteClick={handleOpenFullProfileNote}
 											data-flx="user.user-profile-popout.profile-card-actions"
+										/>
+									)
+								}
+								belowUsername={
+									!isWebhook &&
+									!isCurrentUser &&
+									!user.bot &&
+									profile && (
+										<ProfileCardMutuals
+											profile={profile}
+											user={user}
+											guildId={guildId}
+											onClose={requestClose}
+											data-flx="user.user-profile-popout.profile-card-mutuals"
 										/>
 									)
 								}

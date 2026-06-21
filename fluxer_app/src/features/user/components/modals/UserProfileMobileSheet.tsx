@@ -614,12 +614,28 @@ const UserProfileMobileSheetContent: React.FC<UserProfileMobileSheetContentProps
 													className={styles.tagBadgeRow}
 													data-flx="user.user-profile-mobile-sheet.user-profile-mobile-sheet-content.tag-badge-row"
 												>
-													{!isDisplayNameUsername && (
+													{(!isDisplayNameUsername || effectiveProfile?.pronouns) && (
 														<span
 															className={styles.fullTag}
 															data-flx="user.user-profile-mobile-sheet.user-profile-mobile-sheet-content.full-tag"
 														>
-															{NicknameUtils.formatTagForStreamerMode(user.username)}
+															{!isDisplayNameUsername &&
+																NicknameUtils.formatTagForStreamerMode(user.username)}
+															{effectiveProfile?.pronouns && (
+																<>
+																	{!isDisplayNameUsername && (
+																		<span className={styles.usernameSeparator} aria-hidden="true">
+																			•
+																		</span>
+																	)}
+																	<span
+																		className={styles.pronounsInline}
+																		data-flx="user.user-profile-mobile-sheet.user-profile-mobile-sheet-content.pronouns-inline"
+																	>
+																		{effectiveProfile.pronouns}
+																	</span>
+																</>
+															)}
 														</span>
 													)}
 													<div
