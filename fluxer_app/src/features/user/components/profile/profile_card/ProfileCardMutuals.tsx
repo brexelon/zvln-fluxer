@@ -23,6 +23,7 @@ import type {Profile} from '@app/features/user/models/Profile';
 import type {User} from '@app/features/user/models/User';
 import {useLingui} from '@lingui/react/macro';
 import {observer} from 'mobx-react-lite';
+import clsx from 'clsx';
 import type React from 'react';
 import {useCallback, useMemo} from 'react';
 
@@ -119,8 +120,12 @@ export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({
 	const showPlaceIcons = hasMutualPlaces && !hasMutualFriends;
 	const friendAvatarMaxVisible = hasMutualPlaces ? 1 : 3;
 	const placeIconItems = sortedPlaces.slice(0, 3);
+	const showBothMutuals = hasMutualFriends && hasMutualPlaces;
 	return (
-		<div className={styles.mutualsRow} data-flx="user.profile.profile-card.profile-card-mutuals.mutuals-row">
+		<div
+			className={clsx(styles.mutualsRow, showBothMutuals && styles.mutualsRowCompact)}
+			data-flx="user.profile.profile-card.profile-card-mutuals.mutuals-row"
+		>
 			{showFriendAvatars && (
 				<AvatarStack
 					className={styles.iconStack}
@@ -163,7 +168,10 @@ export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({
 					)}
 				</AvatarStack>
 			)}
-			<div className={styles.mutualsText} data-flx="user.profile.profile-card.profile-card-mutuals.mutuals-text">
+			<div
+				className={clsx(styles.mutualsText, showBothMutuals && styles.mutualsTextCompact)}
+				data-flx="user.profile.profile-card.profile-card-mutuals.mutuals-text"
+			>
 				{hasMutualFriends && (
 					<button
 						type="button"
