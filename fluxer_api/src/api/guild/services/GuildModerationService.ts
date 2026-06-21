@@ -63,6 +63,10 @@ export class GuildModerationService {
 		});
 		if (!hasPermission) throw new MissingPermissionsError();
 		if (userId === targetId) throw new UnknownGuildMemberError();
+		const targetUser = await this.userRepository.findUnique(targetId);
+		if (!targetUser) {
+			throw new UnknownUserError();
+		}
 		const targetMember = await this.guildRepository.getMember(guildId, targetId);
 		if (targetMember) {
 			const canManage = await this.gatewayService.checkTargetMember({guildId, userId, targetUserId: targetId});
@@ -74,10 +78,6 @@ export class GuildModerationService {
 				userId: targetId.toString(),
 				days: deleteMessageDays,
 			});
-		}
-		const targetUser = await this.userRepository.findUnique(targetId);
-		if (!targetUser) {
-			throw new UnknownUserError();
 		}
 		const targetIp = targetUser.lastActiveIp || null;
 		const targetEmail = targetUser.email?.toLowerCase() || null;
