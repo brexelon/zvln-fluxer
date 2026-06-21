@@ -71,6 +71,7 @@ export function useMemberListSubscription({
 	const retryResumeGenerationRef = useRef(GatewayConnection.resumeGeneration);
 	const retrySessionVersionRef = useRef(MemberSidebar.sessionVersion);
 	const retryGatewayReadyRef = useRef(GatewayConnection.isReady);
+	const pendingResumeWhilePausedRef = useRef(false);
 	const ownerIdRef = useRef(createMemberListSubscriptionOwnerId());
 	const ownerId = ownerIdRef.current;
 	const readSubscriptionModel = useCallback(
@@ -89,12 +90,12 @@ export function useMemberListSubscription({
 	}, []);
 	const isMemberListFresh = useCallback(() => {
 		const baseline = resyncBaselineVersionRef.current;
-		if (baseline == null) {
-			const list = MemberSidebar.getList(guildId, channelId);
-			return list != null && list.items.size > 0;
+		const {desiredRanges} = readSubscriptionModel();
+		if (baseline != null && MemberSidebar.getListUpdateVersion(guildId, channelId) <= baseline) {
+			return false;
 		}
-		return MemberSidebar.getListUpdateVersion(guildId, channelId) > baseline;
-	}, [guildId, channelId]);
+		return MemberSidebar.areItemsLoadedForRanges(guildId, channelId, desiredRanges);
+	}, [guildId, channelId, readSubscriptionModel]);
 	const attemptSubscribe = useCallback(
 		(ranges: MemberListRanges, forceSubscriptionUpdate = false) => {
 			const normalizedRanges = normalizeMemberListRanges(ranges);
@@ -220,6 +221,7 @@ export function useMemberListSubscription({
 		retryResumeGenerationRef.current = GatewayConnection.resumeGeneration;
 		retrySessionVersionRef.current = MemberSidebar.sessionVersion;
 		retryGatewayReadyRef.current = GatewayConnection.isReady;
+		pendingResumeWhilePausedRef.current = false;
 		clearRetryTimer();
 	}, [guildId, channelId, clearRetryTimer, sendSubscriptionEvent]);
 	useEffect(() => {
@@ -273,7 +275,11 @@ export function useMemberListSubscription({
 		const disposeResumeReaction = reaction(
 			() => GatewayConnection.resumeGeneration,
 			() => {
-				if (!enabled || !readSubscriptionModel().isActive) {
+				if (!enabled) {
+					return;
+				}
+				if (!readSubscriptionModel().isActive) {
+					pendingResumeWhilePausedRef.current = true;
 					return;
 				}
 				sendSubscriptionEvent({type: 'memberListSubscription.subscriptionCleared'});
@@ -310,6 +316,10 @@ export function useMemberListSubscription({
 		if (isWindowFocused) {
 			MemberSidebar.claimMemberListSubscription(guildId, channelId, ownerId);
 			sendSubscriptionEvent({type: 'memberListSubscription.resumed'});
+			if (pendingResumeWhilePausedRef.current) {
+				pendingResumeWhilePausedRef.current = false;
+				sendSubscriptionEvent({type: 'memberListSubscription.subscriptionCleared'});
+			}
 			resubscribe();
 			return;
 		}

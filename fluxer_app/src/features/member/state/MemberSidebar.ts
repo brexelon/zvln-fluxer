@@ -507,10 +507,25 @@ class MemberSidebar {
 			guildLists[storageKey] = this.createEmptyListState();
 		}
 		const listState = guildLists[storageKey];
+		const visibleGroups = this.visibleGroups(groups);
+		const subscribedRanges = normalizeMemberListRanges(listState.subscribedRanges);
+		this.touchList(guildId, storageKey);
+		if (subscribedRanges.length === 0) {
+			listState.memberCount = memberCount;
+			listState.onlineCount = onlineCount;
+			listState.groups = visibleGroups;
+			listState.hasReceivedInitialPayload = true;
+			listState.rows = new Map();
+			listState.items = new Map();
+			listState.presences = new Map();
+			listState.customStatuses = new Map();
+			this.bumpListUpdateVersion(guildId, storageKey);
+			this.lists = {...this.lists, [guildId]: {...guildLists, [storageKey]: listState}};
+			return;
+		}
 		const newRows = new Map(listState.rows);
 		const changedPresenceUserIds = new Set<string>();
 		const changedCustomStatusUserIds = new Set<string>();
-		this.touchList(guildId, storageKey);
 		for (const op of ops) {
 			const [start, end] = op.range;
 			for (let i = start; i <= end; i++) {
@@ -527,7 +542,6 @@ class MemberSidebar {
 				}
 			}
 		}
-		const visibleGroups = this.visibleGroups(groups);
 		const groupLayouts = buildMemberListLayout(visibleGroups);
 		const totalMembers = Math.max(memberCount, getTotalMemberCount(visibleGroups));
 		const totalRows = groupLayouts.length > 0 ? getTotalRowsFromLayout(groupLayouts) : totalMembers;
@@ -538,9 +552,7 @@ class MemberSidebar {
 			}
 			boundedRows.set(index, row);
 		}
-		const subscribedRanges = normalizeMemberListRanges(listState.subscribedRanges);
-		const prunedRows =
-			subscribedRanges.length > 0 ? this.pruneRowsToRanges(boundedRows, subscribedRanges) : boundedRows;
+		const prunedRows = this.pruneRowsToRanges(boundedRows, subscribedRanges);
 		const newItems = new Map<number, MemberListItem>();
 		const newPresences = new Map<string, StatusType>();
 		const newCustomStatuses = new Map<string, CustomStatus | null>();
@@ -846,6 +858,10 @@ class MemberSidebar {
 			guildLists[storageKey] = {
 				...existingList,
 				subscribedRanges: EMPTY_MEMBER_LIST_RANGES,
+				rows: new Map(),
+				items: new Map(),
+				presences: new Map(),
+				customStatuses: new Map(),
 			};
 			this.touchList(guildId, storageKey);
 			this.lists = {...this.lists, [guildId]: guildLists};
@@ -940,6 +956,30 @@ class MemberSidebar {
 	getListUpdateVersion(guildId: string, channelId: string): number {
 		const storageKey = this.resolveListKey(guildId, channelId);
 		return this.listUpdateVersions.get(this.listUpdateVersionKey(guildId, storageKey)) ?? 0;
+	}
+
+	areItemsLoadedForRanges(guildId: string, channelId: string, ranges: NormalizedMemberListRanges): boolean {
+		const list = this.getList(guildId, channelId);
+		if (!list?.hasReceivedInitialPayload || ranges.length === 0) {
+			return false;
+		}
+		const layouts = buildMemberListLayout(list.groups);
+		const totalRows = layouts.length > 0 ? getTotalRowsFromLayout(layouts) : list.memberCount;
+		for (const [start, end] of ranges) {
+			const rangeEnd = totalRows > 0 ? Math.min(end, totalRows - 1) : end;
+			for (let rowIndex = start; rowIndex <= rangeEnd; rowIndex += 1) {
+				if (layouts.length > 0) {
+					const layout = getGroupLayoutForRow(layouts, rowIndex);
+					if (!layout || rowIndex === layout.headerRowIndex) {
+						continue;
+					}
+				}
+				if (!list.items.has(rowIndex)) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	getList(guildId: string, listId: string): MemberListState | undefined {

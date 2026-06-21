@@ -45,6 +45,7 @@ import type {CustomStatus} from '@app/features/user/state/CustomStatus';
 import Users from '@app/features/user/state/Users';
 import * as AvatarUtils from '@app/features/user/utils/AvatarUtils';
 import * as NicknameUtils from '@app/features/user/utils/NicknameUtils';
+import Window from '@app/features/window/state/Window';
 import {ChannelTypes, Permissions} from '@fluxer/constants/src/ChannelConstants';
 import {MEMBER_LIST_RANGE_MAX_SPAN} from '@fluxer/constants/src/GatewayConstants';
 import {GuildFeatures, GuildOperations} from '@fluxer/constants/src/GuildConstants';
@@ -403,7 +404,8 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 		!isSubscriptionPaused &&
 		memberListState != null &&
 		memberListState.hasReceivedInitialPayload &&
-		areNormalizedMemberListRangesCovered(subscriptionRangesRef.current, subscribedRanges);
+		areNormalizedMemberListRangesCovered(subscriptionRangesRef.current, subscribedRanges) &&
+		MemberSidebar.areItemsLoadedForRanges(guild.id, channel.id, subscriptionRangesRef.current);
 	const shouldStartResumeFreeze =
 		!isSubscriptionPaused &&
 		wasSubscriptionPausedRef.current &&
@@ -525,7 +527,18 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 		if (isSubscriptionPaused) {
 			return;
 		}
-		scheduleRangeUpdateFromScroller();
+		let innerFrame: number | null = null;
+		const frame = window.requestAnimationFrame(() => {
+			innerFrame = window.requestAnimationFrame(() => {
+				scheduleRangeUpdateFromScroller();
+			});
+		});
+		return () => {
+			window.cancelAnimationFrame(frame);
+			if (innerFrame != null) {
+				window.cancelAnimationFrame(innerFrame);
+			}
+		};
 	}, [isSubscriptionPaused, scheduleRangeUpdateFromScroller, totalRows]);
 	useEffect(() => {
 		if (isSubscriptionPaused) {
@@ -557,6 +570,20 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 				}
 				resubscribe();
 				scheduleRangeUpdateFromScroller();
+			},
+		);
+	}, [isSubscriptionPaused, resubscribe, scheduleRangeUpdateFromScroller]);
+	useEffect(() => {
+		return reaction(
+			() => Window.focused,
+			(focused) => {
+				if (!focused || isSubscriptionPaused) {
+					return;
+				}
+				resubscribe();
+				window.requestAnimationFrame(() => {
+					scheduleRangeUpdateFromScroller();
+				});
 			},
 		);
 	}, [isSubscriptionPaused, resubscribe, scheduleRangeUpdateFromScroller]);
