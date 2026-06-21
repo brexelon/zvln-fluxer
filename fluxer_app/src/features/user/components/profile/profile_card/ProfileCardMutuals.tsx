@@ -6,7 +6,6 @@ import {GuildIcon} from '@app/features/guild/components/popouts/GuildIcon';
 import {UserContextMenu} from '@app/features/ui/action_menu/UserContextMenu';
 import {AvatarStack} from '@app/features/ui/avatars/AvatarStack';
 import * as ContextMenuCommands from '@app/features/ui/commands/ContextMenuCommands';
-import {StatusAwareAvatar} from '@app/features/ui/components/StatusAwareAvatar';
 import {
 	getSortedMutualCommunityDisplayItems,
 	getSortedMutualFriends,
@@ -18,10 +17,30 @@ import styles from '@app/features/user/components/profile/profile_card/ProfileCa
 import * as UserProfileCommands from '@app/features/user/commands/UserProfileCommands';
 import type {Profile} from '@app/features/user/models/Profile';
 import type {User} from '@app/features/user/models/User';
-import {plural} from '@lingui/core/macro';
+import {msg} from '@lingui/core/macro';
+import {useLingui} from '@lingui/react/macro';
 import {observer} from 'mobx-react-lite';
 import type React from 'react';
 import {useCallback, useMemo} from 'react';
+
+const MUTUAL_FRIENDS_LABEL_DESCRIPTOR = msg({
+	message: '{count, plural, one {# Mutual Friend} other {# Mutual Friends}}',
+	comment: 'Compact label on the user profile card popout for mutual friends count. Preserve {count}; it is inserted by code.',
+});
+const MUTUAL_COMMUNITIES_LABEL_DESCRIPTOR = msg({
+	message: '{count, plural, one {# Mutual Community} other {# Mutual Communities}}',
+	comment:
+		'Compact label on the user profile card popout for mutual communities count. Preserve {count}; it is inserted by code.',
+});
+const MUTUAL_GROUPS_LABEL_DESCRIPTOR = msg({
+	message: '{count, plural, one {# Mutual Group} other {# Mutual Groups}}',
+	comment: 'Compact label on the user profile card popout for mutual groups count. Preserve {count}; it is inserted by code.',
+});
+const MUTUAL_PLACES_LABEL_DESCRIPTOR = msg({
+	message: '{count, plural, one {# Mutual Place} other {# Mutual Places}}',
+	comment:
+		'Compact label on the user profile card popout for combined mutual groups and communities count. Preserve {count}; it is inserted by code.',
+});
 
 type MutualPlaceListItem =
 	| {kind: 'group'; group: ReturnType<typeof getSortedMutualGroupChannels>[number]; sortName: string}
@@ -53,6 +72,7 @@ interface ProfileCardMutualsProps {
 }
 
 export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({profile, user, guildId, onClose}) => {
+	const {i18n} = useLingui();
 	const sortedFriends = useMemo(
 		() => getSortedMutualFriends(profile.mutualFriends ?? [], profile.guildId ?? guildId),
 		[profile.guildId, profile.mutualFriends, guildId],
@@ -99,10 +119,11 @@ export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({
 	}
 	const placesLabel =
 		mutualCommunitiesCount > 0 && mutualGroupsCount > 0
-			? plural({count: mutualPlacesCount}, {one: '# Mutual Place', other: '# Mutual Places'})
+			? i18n._(MUTUAL_PLACES_LABEL_DESCRIPTOR, {count: mutualPlacesCount})
 			: mutualGroupsCount > 0
-				? plural({count: mutualGroupsCount}, {one: '# Mutual Group', other: '# Mutual Groups'})
-				: plural({count: mutualCommunitiesCount}, {one: '# Mutual Community', other: '# Mutual Communities'});
+				? i18n._(MUTUAL_GROUPS_LABEL_DESCRIPTOR, {count: mutualGroupsCount})
+				: i18n._(MUTUAL_COMMUNITIES_LABEL_DESCRIPTOR, {count: mutualCommunitiesCount});
+	const friendsLabel = i18n._(MUTUAL_FRIENDS_LABEL_DESCRIPTOR, {count: mutualFriendsCount});
 	const showFriendAvatars = hasMutualFriends;
 	const showPlaceIcons = hasMutualPlaces && !hasMutualFriends;
 	const friendAvatarMaxVisible = hasMutualPlaces ? 1 : 3;
@@ -159,12 +180,7 @@ export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({
 						onClick={() => openProfileTab('mutual_friends')}
 						data-flx="user.profile.profile-card.profile-card-mutuals.mutual-friends-link"
 					>
-						<span className={styles.mutualsLabel}>
-							{plural(
-								{count: mutualFriendsCount},
-								{one: '# Mutual Friend', other: '# Mutual Friends'},
-							)}
-						</span>
+						<span className={styles.mutualsLabel}>{friendsLabel}</span>
 					</button>
 				)}
 				{hasMutualFriends && hasMutualPlaces && (
