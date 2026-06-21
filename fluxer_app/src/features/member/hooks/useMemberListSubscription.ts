@@ -27,6 +27,7 @@ interface UseMemberListSubscriptionOptions {
 interface UseMemberListSubscriptionResult {
 	subscribe: (ranges: Array<[number, number]>) => void;
 	unsubscribe: () => void;
+	resubscribe: () => void;
 	isPaused: boolean;
 }
 
@@ -411,5 +412,5 @@ export function useMemberListSubscription({
 			queueSubscribe(desiredRanges);
 		}
 	}, [guildId, channelId, enabled, isWindowFocused, ownerId, queueSubscribe, readSubscriptionModel]);
-	return {subscribe, unsubscribe, isPaused};
+	return {subscribe, unsubscribe, resubscribe, isPaused};
 }

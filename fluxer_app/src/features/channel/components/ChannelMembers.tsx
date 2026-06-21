@@ -11,6 +11,7 @@ import memberItemStyles from '@app/features/channel/components/MemberListItem.mo
 import {MemberListUnavailableFallback} from '@app/features/channel/components/shared/MemberListUnavailableFallback';
 import type {Channel} from '@app/features/channel/models/Channel';
 import type {Guild} from '@app/features/guild/models/Guild';
+import GatewayConnection from '@app/features/gateway/transport/GatewayConnection';
 import {OFFLINE_DESCRIPTOR, ONLINE_DESCRIPTOR} from '@app/features/i18n/utils/CommonMessageDescriptors';
 import {resolveMemberListCustomStatus} from '@app/features/member/hooks/useMemberListCustomStatus';
 import {resolveMemberListPresence} from '@app/features/member/hooks/useMemberListPresence';
@@ -53,6 +54,7 @@ import {useLingui as useLinguiRuntime} from '@lingui/react';
 import {useLingui} from '@lingui/react/macro';
 import {CrownIcon} from '@phosphor-icons/react';
 import clsx from 'clsx';
+import {reaction} from 'mobx';
 import {observer} from 'mobx-react-lite';
 import type {CSSProperties, ReactNode, RefObject, UIEvent} from 'react';
 import {memo, useCallback, useEffect, useMemo, useRef, useState} from 'react';
@@ -348,7 +350,7 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 	const currentUserId = Authentication.currentUserId;
 	const lacksMemberViewPermission =
 		currentUserId != null && !PermissionUtils.can(Permissions.VIEW_CHANNEL_MEMBERS, currentUserId, channel.toJSON());
-	const {subscribe, isPaused: isSubscriptionPaused} = useMemberListSubscription({
+	const {subscribe, resubscribe, isPaused: isSubscriptionPaused} = useMemberListSubscription({
 		guildId: guild.id,
 		channelId: channel.id,
 		enabled: !memberListUpdatesDisabled && !lacksMemberViewPermission,
@@ -543,8 +545,21 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 	useEffect(() => {
 		if (keepFrozenAfterResume && canThawFrozenMemberList) {
 			setKeepFrozenAfterResume(false);
+			scheduleRangeUpdateFromScroller();
 		}
-	}, [keepFrozenAfterResume, canThawFrozenMemberList]);
+	}, [keepFrozenAfterResume, canThawFrozenMemberList, scheduleRangeUpdateFromScroller]);
+	useEffect(() => {
+		return reaction(
+			() => GatewayConnection.resumeGeneration,
+			() => {
+				if (isSubscriptionPaused) {
+					return;
+				}
+				resubscribe();
+				scheduleRangeUpdateFromScroller();
+			},
+		);
+	}, [isSubscriptionPaused, resubscribe, scheduleRangeUpdateFromScroller]);
 	useEffect(() => {
 		return () => {
 			if (scrollFrameRef.current != null) {
