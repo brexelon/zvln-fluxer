@@ -14,13 +14,16 @@ import {Scroller} from '@app/features/ui/components/Scroller';
 import {StatusAwareAvatar} from '@app/features/ui/components/StatusAwareAvatar';
 import styles from '@app/features/user/components/modals/MutualItemsSheet.module.css';
 import {getMutualItemsDescriptor} from '@app/features/user/components/modals/user_profile_modal/MutualItemsDescriptors';
-import {getMutualCommunityDisplayItems} from '@app/features/user/components/modals/user_profile_modal/MutualItemsUtils';
+import {
+	getMutualCommunityDisplayItems,
+	getSortedMutualCommunityDisplayItems,
+	getSortedMutualFriends,
+	getSortedMutualPlaceItems,
+} from '@app/features/user/components/modals/user_profile_modal/MutualItemsUtils';
 import type {Profile} from '@app/features/user/models/Profile';
-import {User} from '@app/features/user/models/User';
 import UserProfileMobile from '@app/features/user/state/UserProfileMobile';
 import * as NicknameUtils from '@app/features/user/utils/NicknameUtils';
 import {ME} from '@fluxer/constants/src/AppConstants';
-import type {UserPartial} from '@fluxer/schema/src/domains/user/UserResponseSchemas';
 import {msg, plural} from '@lingui/core/macro';
 import {useLingui as useLinguiRuntime} from '@lingui/react';
 import {useLingui} from '@lingui/react/macro';
@@ -109,12 +112,10 @@ export const MutualItemsSheet: React.FC<MutualItemsSheetProps> = observer(
 	},
 );
 const MutualFriendsList: React.FC<{profile: Profile; onClose: () => void}> = observer(({profile, onClose}) => {
-	const friends = profile.mutualFriends ?? [];
+	const sortedFriends = getSortedMutualFriends(profile.mutualFriends ?? []);
 	return (
 		<>
-			{friends.map((friend: UserPartial) => {
-				const friendRecord = new User(friend);
-				return (
+			{sortedFriends.map((friendRecord) => (
 					<button
 						key={friendRecord.id}
 						type="button"
@@ -140,8 +141,7 @@ const MutualFriendsList: React.FC<{profile: Profile; onClose: () => void}> = obs
 							</span>
 						</div>
 					</button>
-				);
-			})}
+				))}
 		</>
 	);
 });
@@ -151,114 +151,118 @@ const MutualCommunitiesGroupsList: React.FC<{
 	onClose: () => void;
 }> = observer(({profile, groups, onClose}) => {
 	useLinguiRuntime();
-	const mutualCommunityDisplayItems = getMutualCommunityDisplayItems(profile.mutualGuilds ?? []);
+	const sortedGroups = [...groups].sort((left, right) =>
+		ChannelUtils.getDMDisplayName(left).localeCompare(ChannelUtils.getDMDisplayName(right), undefined, {
+			sensitivity: 'base',
+		}),
+	);
+	const sortedCommunities = getSortedMutualCommunityDisplayItems(profile.mutualGuilds ?? []);
+	const sortedPlaces = getSortedMutualPlaceItems(sortedGroups, sortedCommunities);
 	return (
 		<>
-			{groups.map((group) => {
-				const memberCount = group.recipientIds.length + 1;
-				const memberLabel = plural(
-					{count: memberCount},
-					{
-						one: '# member',
-						other: '# members',
-					},
-				);
+			{sortedPlaces.map((item) => {
+				if (item.kind === 'group') {
+					const group = item.group;
+					const memberCount = group.recipientIds.length + 1;
+					const memberLabel = plural(
+						{count: memberCount},
+						{
+							one: '# member',
+							other: '# members',
+						},
+					);
+					return (
+						<button
+							key={group.id}
+							type="button"
+							className={styles.item}
+							onClick={() => {
+								onClose();
+								UserProfileMobile.close();
+								NavigationCommands.selectChannel(ME, group.id);
+								focusChannelTextareaAfterNavigation(group.id);
+							}}
+							data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-item.close.button"
+						>
+							<div
+								className={styles.iconFrame}
+								data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-icon-frame"
+							>
+								<GroupDMAvatar
+									channel={group}
+									size={40}
+									data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-dm-avatar"
+								/>
+							</div>
+							<div
+								className={styles.itemInfo}
+								data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-item-info"
+							>
+								<span
+									className={styles.itemName}
+									data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-item-name"
+								>
+									{ChannelUtils.getDMDisplayName(group)}
+								</span>
+								<span
+									className={styles.itemDetail}
+									data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-item-detail"
+								>
+									{memberLabel}
+								</span>
+							</div>
+						</button>
+					);
+				}
+				const {guild, nick} = item.community;
 				return (
 					<button
-						key={group.id}
+						key={guild.id}
 						type="button"
 						className={styles.item}
 						onClick={() => {
 							onClose();
 							UserProfileMobile.close();
-							NavigationCommands.selectChannel(ME, group.id);
-							focusChannelTextareaAfterNavigation(group.id);
+							const selectedChannel = SelectedChannel.selectedChannelIds.get(guild.id);
+							NavigationCommands.selectGuild(guild.id, selectedChannel);
 						}}
-						data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-item.close.button"
+						data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-item.close.button"
 					>
 						<div
 							className={styles.iconFrame}
-							data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-icon-frame"
+							data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-icon-frame"
 						>
-							<GroupDMAvatar
-								channel={group}
-								size={40}
-								data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-dm-avatar"
+							<GuildIcon
+								id={guild.id}
+								name={guild.name}
+								icon={guild.icon}
+								className={styles.guildIcon}
+								sizePx={40}
+								data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-icon"
 							/>
 						</div>
 						<div
 							className={styles.itemInfo}
-							data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-item-info"
+							data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-item-info"
 						>
 							<span
 								className={styles.itemName}
-								data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-item-name"
+								data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-item-name"
 							>
-								{ChannelUtils.getDMDisplayName(group)}
+								{guild.name}
 							</span>
-							<span
-								className={styles.itemDetail}
-								data-flx="user.mutual-items-sheet.mutual-communities-groups-list.group-item-detail"
-							>
-								{memberLabel}
-							</span>
+							{nick && (
+								<span
+									className={styles.itemDetail}
+									data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-item-detail"
+								>
+									{nick}
+								</span>
+							)}
 						</div>
 					</button>
 				);
 			})}
-			{groups.length > 0 && mutualCommunityDisplayItems.length > 0 && (
-				<div
-					className={styles.sectionDivider}
-					data-flx="user.mutual-items-sheet.mutual-communities-groups-list.section-divider"
-				/>
-			)}
-			{mutualCommunityDisplayItems.map(({guild, nick}) => (
-				<button
-					key={guild.id}
-					type="button"
-					className={styles.item}
-					onClick={() => {
-						onClose();
-						UserProfileMobile.close();
-						const selectedChannel = SelectedChannel.selectedChannelIds.get(guild.id);
-						NavigationCommands.selectGuild(guild.id, selectedChannel);
-					}}
-					data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-item.close.button"
-				>
-					<div
-						className={styles.iconFrame}
-						data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-icon-frame"
-					>
-						<GuildIcon
-							id={guild.id}
-							name={guild.name}
-							icon={guild.icon}
-							className={styles.guildIcon}
-							sizePx={40}
-							data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-icon"
-						/>
-					</div>
-					<div
-						className={styles.itemInfo}
-						data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-item-info"
-					>
-						<span
-							className={styles.itemName}
-							data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-item-name"
-						>
-							{guild.name}
-						</span>
-						{nick && (
-							<span
-								className={styles.itemDetail}
-								data-flx="user.mutual-items-sheet.mutual-communities-groups-list.guild-item-detail"
-							>
-								{nick}
-							</span>
-						)}
-					</div>
-				</button>
-			))}
 		</>
 	);
 });

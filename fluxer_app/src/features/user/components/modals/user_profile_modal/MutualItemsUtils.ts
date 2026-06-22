@@ -7,13 +7,16 @@ import type {Guild} from '@app/features/guild/models/Guild';
 import Guilds from '@app/features/guild/state/Guilds';
 import {User} from '@app/features/user/models/User';
 import type {ProfileMutualGuild} from '@app/features/user/models/Profile';
-import * as NicknameUtils from '@app/features/user/utils/NicknameUtils';
 import type {UserPartial} from '@fluxer/schema/src/domains/user/UserResponseSchemas';
 
 export type MutualCommunityDisplayItem = {
 	guild: Guild;
 	nick: string | null;
 };
+
+export type MutualPlaceListItem =
+	| {kind: 'group'; group: Channel; sortName: string}
+	| {kind: 'community'; community: MutualCommunityDisplayItem; sortName: string};
 
 function compareStrings(left: string, right: string): number {
 	return left.localeCompare(right, undefined, {sensitivity: 'base'});
@@ -37,15 +40,10 @@ export function getMutualCommunityDisplayItems(
 		.filter((item): item is MutualCommunityDisplayItem => item !== null);
 }
 
-export function getSortedMutualFriends(
-	mutualFriends: ReadonlyArray<UserPartial>,
-	guildId?: string | null,
-): Array<User> {
+export function getSortedMutualFriends(mutualFriends: ReadonlyArray<UserPartial>): Array<User> {
 	return mutualFriends
 		.map((friend) => new User(friend))
-		.sort((left, right) =>
-			compareStrings(NicknameUtils.getNickname(left, guildId ?? undefined), NicknameUtils.getNickname(right, guildId ?? undefined)),
-		);
+		.sort((left, right) => compareStrings(left.username, right.username));
 }
 
 export function getSortedMutualCommunityDisplayItems(
@@ -58,4 +56,22 @@ export function getSortedMutualGroupChannels(userId: string): Array<Channel> {
 	return getMutualGroupChannels(userId).sort((left, right) =>
 		compareStrings(ChannelUtils.getDMDisplayName(left), ChannelUtils.getDMDisplayName(right)),
 	);
+}
+
+export function getSortedMutualPlaceItems(
+	sortedGroups: ReadonlyArray<Channel>,
+	sortedCommunities: ReadonlyArray<MutualCommunityDisplayItem>,
+): Array<MutualPlaceListItem> {
+	return [
+		...sortedGroups.map((group) => ({
+			kind: 'group' as const,
+			group,
+			sortName: ChannelUtils.getDMDisplayName(group),
+		})),
+		...sortedCommunities.map((community) => ({
+			kind: 'community' as const,
+			community,
+			sortName: community.guild.name,
+		})),
+	].sort((left, right) => compareStrings(left.sortName, right.sortName));
 }

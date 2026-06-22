@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import {GroupDMAvatar} from '@app/features/app/components/shared/GroupDMAvatar';
-import * as ChannelUtils from '@app/features/channel/utils/ChannelUtils';
 import {GuildIcon} from '@app/features/guild/components/popouts/GuildIcon';
 import {UserContextMenu} from '@app/features/ui/action_menu/UserContextMenu';
 import {AvatarStack} from '@app/features/ui/avatars/AvatarStack';
@@ -14,7 +13,7 @@ import {
 	getSortedMutualCommunityDisplayItems,
 	getSortedMutualFriends,
 	getSortedMutualGroupChannels,
-	type MutualCommunityDisplayItem,
+	getSortedMutualPlaceItems,
 } from '@app/features/user/components/modals/user_profile_modal/MutualItemsUtils';
 import type {ProfileTab} from '@app/features/user/components/modals/user_profile_modal/UserProfileModalShared';
 import styles from '@app/features/user/components/profile/profile_card/ProfileCardMutuals.module.css';
@@ -27,28 +26,6 @@ import clsx from 'clsx';
 import type React from 'react';
 import {useCallback, useMemo} from 'react';
 
-type MutualPlaceListItem =
-	| {kind: 'group'; group: ReturnType<typeof getSortedMutualGroupChannels>[number]; sortName: string}
-	| {kind: 'community'; community: MutualCommunityDisplayItem; sortName: string};
-
-function getSortedMutualPlaceItems(
-	sortedGroups: ReturnType<typeof getSortedMutualGroupChannels>,
-	sortedCommunities: Array<MutualCommunityDisplayItem>,
-): Array<MutualPlaceListItem> {
-	return [
-		...sortedGroups.map((group) => ({
-			kind: 'group' as const,
-			group,
-			sortName: ChannelUtils.getDMDisplayName(group),
-		})),
-		...sortedCommunities.map((community) => ({
-			kind: 'community' as const,
-			community,
-			sortName: community.nick ?? community.guild.name,
-		})),
-	].sort((left, right) => left.sortName.localeCompare(right.sortName, undefined, {sensitivity: 'base'}));
-}
-
 interface ProfileCardMutualsProps {
 	profile: Profile;
 	user: User;
@@ -59,8 +36,8 @@ interface ProfileCardMutualsProps {
 export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({profile, user, guildId, onClose}) => {
 	const {i18n} = useLingui();
 	const sortedFriends = useMemo(
-		() => getSortedMutualFriends(profile.mutualFriends ?? [], profile.guildId ?? guildId),
-		[profile.guildId, profile.mutualFriends, guildId],
+		() => getSortedMutualFriends(profile.mutualFriends ?? []),
+		[profile.mutualFriends],
 	);
 	const sortedCommunities = useMemo(
 		() => getSortedMutualCommunityDisplayItems(profile.mutualGuilds ?? []),
