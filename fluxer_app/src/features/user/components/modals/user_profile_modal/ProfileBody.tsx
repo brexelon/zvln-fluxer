@@ -32,7 +32,6 @@ import {
 	getSortedMutualCommunityDisplayItems,
 	getSortedMutualFriends,
 	getSortedMutualGroupChannels,
-	getSortedMutualPlaceItems,
 } from '@app/features/user/components/modals/user_profile_modal/MutualItemsUtils';
 import {ProfileContent} from '@app/features/user/components/modals/user_profile_modal/ProfileContent';
 import {
@@ -99,10 +98,6 @@ export const ProfileBody: React.FC<ProfileBodyProps> = observer(
 		const sortedMutualCommunities = useMemo(
 			() => getSortedMutualCommunityDisplayItems(profileMutualGuilds),
 			[profileMutualGuilds],
-		);
-		const sortedMutualPlaces = useMemo(
-			() => getSortedMutualPlaceItems(sortedMutualGroups, sortedMutualCommunities),
-			[sortedMutualGroups, sortedMutualCommunities],
 		);
 		const mutualCommunitiesCount = mutualCommunityDisplayItems.length;
 		const mutualGroupsCount = mutualGroups.length;
@@ -304,28 +299,33 @@ export const ProfileBody: React.FC<ProfileBodyProps> = observer(
 				className={userProfileModalStyles.mutualFriendsList}
 				data-flx="user.user-profile-modal.render-mutual-communities-groups-list.div"
 			>
-				{sortedMutualPlaces.map((item) =>
-					item.kind === 'group' ? (
-						<MutualGroupItem
-							key={item.group.id}
-							group={item.group}
-							onClick={() => handleGroupClick(item.group)}
-							onContextMenu={(event) => handleGroupContextMenu(event, item.group)}
-							isContextMenuOpen={isContextMenuOpenFor}
-							data-flx="user.user-profile-modal.render-mutual-communities-groups-list.mutual-group-item.group-click"
-						/>
-					) : (
-						<MutualGuildItem
-							key={item.community.guild.id}
-							guild={item.community.guild}
-							nick={item.community.nick}
-							onClick={() => handleGuildClick(item.community.guild)}
-							onContextMenu={(event) => handleGuildContextMenu(event, item.community.guild)}
-							isContextMenuOpen={isContextMenuOpenFor}
-							data-flx="user.user-profile-modal.render-mutual-communities-groups-list.mutual-guild-item.guild-click"
-						/>
-					),
+				{sortedMutualGroups.map((group) => (
+					<MutualGroupItem
+						key={group.id}
+						group={group}
+						onClick={() => handleGroupClick(group)}
+						onContextMenu={(event) => handleGroupContextMenu(event, group)}
+						isContextMenuOpen={isContextMenuOpenFor}
+						data-flx="user.user-profile-modal.render-mutual-communities-groups-list.mutual-group-item.group-click"
+					/>
+				))}
+				{sortedMutualGroups.length > 0 && sortedMutualCommunities.length > 0 && (
+					<div
+						className={userProfileModalStyles.mutualSectionDivider}
+						data-flx="user.user-profile-modal.render-mutual-communities-groups-list.section-divider"
+					/>
 				)}
+				{sortedMutualCommunities.map(({guild, nick}) => (
+					<MutualGuildItem
+						key={guild.id}
+						guild={guild}
+						nick={nick}
+						onClick={() => handleGuildClick(guild)}
+						onContextMenu={(event) => handleGuildContextMenu(event, guild)}
+						isContextMenuOpen={isContextMenuOpenFor}
+						data-flx="user.user-profile-modal.render-mutual-communities-groups-list.mutual-guild-item.guild-click"
+					/>
+				))}
 				{mutualCommunitiesGroupsCount === 0 && (
 					<div
 						className={userProfileModalStyles.emptyState}
