@@ -74,12 +74,22 @@ export class FallbackUsersServiceClient implements IUsersServiceClient {
 	) {}
 
 	async getUserPartialResponses(userIds: Array<UserID>): Promise<Map<UserID, UserPartialResponse>> {
+		let result: Map<UserID, UserPartialResponse>;
 		try {
-			return await this.primary.getUserPartialResponses(userIds);
+			result = await this.primary.getUserPartialResponses(userIds);
 		} catch (error) {
 			Logger.warn({error, userIds: userIds.map((userId) => userId.toString())}, '[users-service] falling back to repository');
 			return await this.fallback.getUserPartialResponses(userIds);
 		}
+		const missingUserIds = userIds.filter((userId) => !result.has(userId));
+		if (missingUserIds.length === 0) {
+			return result;
+		}
+		const fallbackPartials = await this.fallback.getUserPartialResponses(missingUserIds);
+		for (const [userId, partial] of fallbackPartials) {
+			result.set(userId, partial);
+		}
+		return result;
 	}
 
 	async invalidateUserCache(userId: UserID): Promise<void> {

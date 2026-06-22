@@ -157,6 +157,7 @@ function handleReadyInternal(data: ReadyPayload, context: GatewayHandlerContext)
 	GuildMembers.handleConnectionOpen(guilds);
 	GuildVerification.handleConnectionOpen();
 	Channels.handleConnectionOpen({channels});
+	Users.hydrateCachedPlaceholders();
 	if (data.auth_session_id_hash) {
 		AuthSession.handleConnectionOpen(data.auth_session_id_hash);
 	} else {
