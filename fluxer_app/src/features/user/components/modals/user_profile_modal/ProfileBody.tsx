@@ -22,7 +22,8 @@ import {MutualFriendItem} from '@app/features/user/components/modals/user_profil
 import {MutualGroupItem} from '@app/features/user/components/modals/user_profile_modal/MutualGroupItem';
 import {MutualGuildItem} from '@app/features/user/components/modals/user_profile_modal/MutualGuildItem';
 import {
-	getMutualItemsDescriptor,
+	getMutualItemsCompactDescriptor,
+	MUTUAL_FRIENDS_COMPACT_DESCRIPTOR,
 	NO_MUTUAL_COMMUNITIES_FOUND_DESCRIPTOR,
 } from '@app/features/user/components/modals/user_profile_modal/MutualItemsDescriptors';
 import {
@@ -47,10 +48,6 @@ import {observer} from 'mobx-react-lite';
 import type React from 'react';
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 
-const MUTUAL_FRIENDS_DESCRIPTOR = msg({
-	message: 'Mutual friends ({count})',
-	comment: 'Short label in the user profile modal. Keep it concise. Preserve {count}; it is inserted by code.',
-});
 const OVERVIEW_DESCRIPTOR = msg({
 	message: 'Overview',
 	comment: 'Short label in the user profile modal. Keep it concise.',
@@ -104,22 +101,27 @@ export const ProfileBody: React.FC<ProfileBodyProps> = observer(
 			[contextMenuTarget],
 		);
 		const tabs = useMemo(() => {
+			const placesCount =
+				mutualCommunitiesCount > 0 && mutualGroupsCount > 0
+					? mutualCommunitiesGroupsCount
+					: mutualGroupsCount > 0
+						? mutualGroupsCount
+						: mutualCommunitiesCount;
 			const items: Array<{key: ProfileTab; label: string}> = [{key: 'overview', label: i18n._(OVERVIEW_DESCRIPTOR)}];
 			if (showMutualFriendsTab) {
 				items.push({
 					key: 'mutual_friends',
-					label: i18n._(MUTUAL_FRIENDS_DESCRIPTOR, {count: mutualFriends.length}),
+					label: i18n._(MUTUAL_FRIENDS_COMPACT_DESCRIPTOR, {count: mutualFriends.length}),
 				});
 			}
 			items.push({
 				key: 'mutual_communities_groups',
 				label: i18n._(
-					getMutualItemsDescriptor({
+					getMutualItemsCompactDescriptor({
 						mutualCommunitiesCount,
 						mutualGroupsCount,
-						includeCount: true,
 					}),
-					{count: mutualCommunitiesGroupsCount},
+					{count: placesCount},
 				),
 			});
 			return items;

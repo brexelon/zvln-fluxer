@@ -46,7 +46,10 @@ import {UserProfileActionsSheet} from '@app/features/user/components/modals/User
 import styles from '@app/features/user/components/modals/UserProfileMobileSheet.module.css';
 import {getContrastingNotchColor} from '@app/features/user/components/modals/UserProfileUtils';
 import {UserSettingsModal} from '@app/features/user/components/modals/UserSettingsModal';
-import {getMutualItemsDescriptor} from '@app/features/user/components/modals/user_profile_modal/MutualItemsDescriptors';
+import {
+	getMutualItemsCompactDescriptor,
+	MUTUAL_FRIENDS_COMPACT_DESCRIPTOR,
+} from '@app/features/user/components/modals/user_profile_modal/MutualItemsDescriptors';
 import {
 	getMutualCommunityDisplayItems,
 	getMutualGroupChannels,
@@ -270,6 +273,12 @@ const UserProfileMobileSheetContent: React.FC<UserProfileMobileSheetContentProps
 		const mutualGroups = getMutualGroupChannels(user.id);
 		const mutualGroupsCount = mutualGroups.length;
 		const mutualCommunitiesGroupsCount = mutualCommunitiesCount + mutualGroupsCount;
+		const mutualPlacesCount =
+			mutualCommunitiesCount > 0 && mutualGroupsCount > 0
+				? mutualCommunitiesGroupsCount
+				: mutualGroupsCount > 0
+					? mutualGroupsCount
+					: mutualCommunitiesCount;
 		const hasMutuals = mutualFriendsCount > 0 || mutualCommunitiesGroupsCount > 0;
 		useEffect(() => {
 			if (!initialTab || initialTabAppliedRef.current) {
@@ -859,7 +868,7 @@ const UserProfileMobileSheetContent: React.FC<UserProfileMobileSheetContentProps
 																	className={styles.mutualButtonLabel}
 																	data-flx="user.user-profile-mobile-sheet.user-profile-mobile-sheet-content.mutual-button-label"
 																>
-																	<Trans>Mutual friends ({mutualFriendsCount})</Trans>
+																	{i18n._(MUTUAL_FRIENDS_COMPACT_DESCRIPTOR, {count: mutualFriendsCount})}
 																</span>
 															</button>
 														),
@@ -876,12 +885,11 @@ const UserProfileMobileSheetContent: React.FC<UserProfileMobileSheetContentProps
 																	data-flx="user.user-profile-mobile-sheet.user-profile-mobile-sheet-content.mutual-button-label--2"
 																>
 																	{i18n._(
-																		getMutualItemsDescriptor({
+																		getMutualItemsCompactDescriptor({
 																			mutualCommunitiesCount,
 																			mutualGroupsCount,
-																			includeCount: true,
 																		}),
-																		{count: mutualCommunitiesGroupsCount},
+																		{count: mutualPlacesCount},
 																	)}
 																</span>
 															</button>

@@ -43,24 +43,24 @@ export const MUTUAL_FRIENDS_COUNT_DESCRIPTOR = msg({
 		'Short tab or button label for a list of mutual friends in the user profile modal. Preserve {count}; it is inserted by code.',
 });
 export const MUTUAL_FRIENDS_COMPACT_DESCRIPTOR = msg({
-	message: '{count, plural, one {# Mutual Friend} other {# Mutual Friends}}',
+	message: '{count, plural, one {# mutual friend} other {# mutual friends}}',
 	comment:
-		'Compact label on the user profile card popout for mutual friends count. Preserve {count}; it is inserted by code.',
+		'Compact label for mutual friends count in profile tabs and the user profile card popout. Preserve {count}; it is inserted by code.',
 });
 export const MUTUAL_COMMUNITIES_COMPACT_DESCRIPTOR = msg({
-	message: '{count, plural, one {# Mutual Community} other {# Mutual Communities}}',
+	message: '{count, plural, one {# mutual community} other {# mutual communities}}',
 	comment:
-		'Compact label on the user profile card popout for mutual communities count. Preserve {count}; it is inserted by code.',
+		'Compact label for mutual communities count in profile tabs and the user profile card popout. Preserve {count}; it is inserted by code.',
 });
 export const MUTUAL_GROUPS_COMPACT_DESCRIPTOR = msg({
-	message: '{count, plural, one {# Mutual Group} other {# Mutual Groups}}',
+	message: '{count, plural, one {# mutual group} other {# mutual groups}}',
 	comment:
-		'Compact label on the user profile card popout for mutual groups count. Preserve {count}; it is inserted by code.',
+		'Compact label for mutual groups count in profile tabs and the user profile card popout. Preserve {count}; it is inserted by code.',
 });
 export const MUTUAL_PLACES_COMPACT_DESCRIPTOR = msg({
-	message: '{count, plural, one {# Mutual Place} other {# Mutual Places}}',
+	message: '{count, plural, one {# mutual place} other {# mutual places}}',
 	comment:
-		'Compact label on the user profile card popout for combined mutual groups and communities count. Preserve {count}; it is inserted by code.',
+		'Compact label for combined mutual groups and communities count in profile tabs and the user profile card popout. Preserve {count}; it is inserted by code.',
 });
 export const NO_MUTUAL_COMMUNITIES_FOUND_DESCRIPTOR = msg({
 	message: 'No mutual communities found.',
