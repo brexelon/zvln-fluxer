@@ -69,8 +69,7 @@
 }
 
 .belowUsernameSlot {
-	margin-top: 0.425rem;
-	margin-bottom: 0.350rem;
+	margin-top: var(--profile-card-section-gap, 0.625rem);
 }
 
 .usernameButton {
