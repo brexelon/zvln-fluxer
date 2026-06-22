@@ -22,8 +22,8 @@ import {MutualFriendItem} from '@app/features/user/components/modals/user_profil
 import {MutualGroupItem} from '@app/features/user/components/modals/user_profile_modal/MutualGroupItem';
 import {MutualGuildItem} from '@app/features/user/components/modals/user_profile_modal/MutualGuildItem';
 import {
-	getMutualItemsCompactDescriptor,
-	MUTUAL_FRIENDS_COMPACT_DESCRIPTOR,
+	getMutualFriendsTabLabelDescriptor,
+	getMutualItemsTabLabelDescriptor,
 	NO_MUTUAL_COMMUNITIES_FOUND_DESCRIPTOR,
 } from '@app/features/user/components/modals/user_profile_modal/MutualItemsDescriptors';
 import {
@@ -117,20 +117,27 @@ export const ProfileBody: React.FC<ProfileBodyProps> = observer(
 						: mutualCommunitiesCount;
 			const items: Array<{key: ProfileTab; label: string}> = [{key: 'overview', label: i18n._(OVERVIEW_DESCRIPTOR)}];
 			if (showMutualFriendsTab) {
+				const mutualFriendsCount = mutualFriends.length;
+				const friendsLabelDescriptor = getMutualFriendsTabLabelDescriptor(mutualFriendsCount);
 				items.push({
 					key: 'mutual_friends',
-					label: i18n._(MUTUAL_FRIENDS_COMPACT_DESCRIPTOR, {count: mutualFriends.length}),
+					label:
+						mutualFriendsCount === 0
+							? i18n._(friendsLabelDescriptor)
+							: i18n._(friendsLabelDescriptor, {count: mutualFriendsCount}),
 				});
 			}
+			const placesLabelDescriptor = getMutualItemsTabLabelDescriptor({
+				mutualCommunitiesCount,
+				mutualGroupsCount,
+				count: placesCount,
+			});
 			items.push({
 				key: 'mutual_communities_groups',
-				label: i18n._(
-					getMutualItemsCompactDescriptor({
-						mutualCommunitiesCount,
-						mutualGroupsCount,
-					}),
-					{count: placesCount},
-				),
+				label:
+					placesCount === 0
+						? i18n._(placesLabelDescriptor)
+						: i18n._(placesLabelDescriptor, {count: placesCount}),
 			});
 			return items;
 		}, [

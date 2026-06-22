@@ -21273,6 +21273,26 @@ msgstr "{count, plural, one {# mutual group} other {# mutual groups}}"
 msgid "{count, plural, one {# mutual place} other {# mutual places}}"
 msgstr "{count, plural, one {# mutual place} other {# mutual places}}"
 
+#. Profile tab label when the user has no mutual friends.
+#: src/features/user/components/modals/user_profile_modal/MutualItemsDescriptors.ts:65
+msgid "No mutual friends"
+msgstr "No mutual friends"
+
+#. Profile tab label when the user has no mutual communities.
+#: src/features/user/components/modals/user_profile_modal/MutualItemsDescriptors.ts:69
+msgid "No mutual communities"
+msgstr "No mutual communities"
+
+#. Profile tab label when the user has no mutual groups.
+#: src/features/user/components/modals/user_profile_modal/MutualItemsDescriptors.ts:73
+msgid "No mutual groups"
+msgstr "No mutual groups"
+
+#. Profile tab label when the user has no mutual groups or communities.
+#: src/features/user/components/modals/user_profile_modal/MutualItemsDescriptors.ts:77
+msgid "No mutual places"
+msgstr "No mutual places"
+
 #. Short label in the application create modal. Keep it concise.
 #. Short label in the application info section. Keep it concise.
 #: src/features/user/components/modals/tabs/applications_tab/application_detail/ApplicationInfoSection.tsx:31

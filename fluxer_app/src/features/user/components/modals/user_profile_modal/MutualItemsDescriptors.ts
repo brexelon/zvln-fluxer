@@ -62,6 +62,22 @@ export const MUTUAL_PLACES_COMPACT_DESCRIPTOR = msg({
 	comment:
 		'Compact label for combined mutual groups and communities count in profile tabs and the user profile card popout. Preserve {count}; it is inserted by code.',
 });
+export const NO_MUTUAL_FRIENDS_TAB_DESCRIPTOR = msg({
+	message: 'No mutual friends',
+	comment: 'Profile tab label when the user has no mutual friends.',
+});
+export const NO_MUTUAL_COMMUNITIES_TAB_DESCRIPTOR = msg({
+	message: 'No mutual communities',
+	comment: 'Profile tab label when the user has no mutual communities.',
+});
+export const NO_MUTUAL_GROUPS_TAB_DESCRIPTOR = msg({
+	message: 'No mutual groups',
+	comment: 'Profile tab label when the user has no mutual groups.',
+});
+export const NO_MUTUAL_PLACES_TAB_DESCRIPTOR = msg({
+	message: 'No mutual places',
+	comment: 'Profile tab label when the user has no mutual groups or communities.',
+});
 export const NO_MUTUAL_COMMUNITIES_FOUND_DESCRIPTOR = msg({
 	message: 'No mutual communities found.',
 	comment: 'Empty state in the user profile modal when no shared communities are available.',
@@ -92,4 +108,32 @@ export function getMutualItemsCompactDescriptor({
 		return MUTUAL_GROUPS_COMPACT_DESCRIPTOR;
 	}
 	return MUTUAL_COMMUNITIES_COMPACT_DESCRIPTOR;
+}
+
+export function getMutualFriendsTabLabelDescriptor(count: number): MessageDescriptor {
+	return count === 0 ? NO_MUTUAL_FRIENDS_TAB_DESCRIPTOR : MUTUAL_FRIENDS_COMPACT_DESCRIPTOR;
+}
+
+function getMutualItemsEmptyTabLabelDescriptor({
+	mutualCommunitiesCount,
+	mutualGroupsCount,
+}: Omit<MutualItemsDescriptorOptions, 'includeCount'>): MessageDescriptor {
+	if (mutualCommunitiesCount > 0 && mutualGroupsCount > 0) {
+		return NO_MUTUAL_PLACES_TAB_DESCRIPTOR;
+	}
+	if (mutualGroupsCount > 0) {
+		return NO_MUTUAL_GROUPS_TAB_DESCRIPTOR;
+	}
+	return NO_MUTUAL_COMMUNITIES_TAB_DESCRIPTOR;
+}
+
+export function getMutualItemsTabLabelDescriptor({
+	mutualCommunitiesCount,
+	mutualGroupsCount,
+	count,
+}: Omit<MutualItemsDescriptorOptions, 'includeCount'> & {count: number}): MessageDescriptor {
+	if (count === 0) {
+		return getMutualItemsEmptyTabLabelDescriptor({mutualCommunitiesCount, mutualGroupsCount});
+	}
+	return getMutualItemsCompactDescriptor({mutualCommunitiesCount, mutualGroupsCount});
 }
