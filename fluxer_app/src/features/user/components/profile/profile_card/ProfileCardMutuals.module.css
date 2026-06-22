@@ -25,6 +25,14 @@
 	--avatar-outline: 0.0625rem;
 }
 
+.iconStackStacked {
+	margin-inline-end: 0.375rem;
+}
+
+.mutualsRowCompact .iconStackStacked {
+	margin-inline-end: 0.3125rem;
+}
+
 .guildIconWrapper {
 	display: flex;
 	overflow: hidden;
