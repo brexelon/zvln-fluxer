@@ -135,7 +135,14 @@ export const ProfileCardUserInfo: React.FC<ProfileCardUserInfoProps> = observer(
 						{usernameActions}
 					</div>
 				)}
-				{belowUsername}
+				{belowUsername && (
+					<div
+						className={styles.belowUsernameSlot}
+						data-flx="user.profile.profile-card.profile-card-user-info.below-username-slot"
+					>
+						{belowUsername}
+					</div>
+				)}
 			</div>
 		);
 	},
