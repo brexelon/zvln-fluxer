@@ -640,7 +640,7 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 	}, [isSubscriptionPaused, refreshVisibleMemberList, totalRows]);
 	useEffect(() => {
 		return reaction(
-			() => Window.focused && Window.visible,
+			() => Window.visible,
 			(active) => {
 				if (!active || isSubscriptionPaused) {
 					return;

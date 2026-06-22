@@ -34,13 +34,13 @@ interface UseMemberListSubscriptionResult {
 
 function subscribeToWindowActive(onChange: () => void): () => void {
 	return reaction(
-		() => Window.focused && Window.visible,
+		() => Window.visible,
 		() => onChange(),
 	);
 }
 
 function getWindowActiveSnapshot(): boolean {
-	return Window.focused && Window.visible;
+	return Window.visible;
 }
 
 let nextMemberListSubscriptionOwnerId = 0;
@@ -60,7 +60,7 @@ export function useMemberListSubscription({
 	const subscriptionSnapshotRef = useRef(
 		createMemberListSubscriptionSnapshot({
 			enabled,
-			paused: enabled && !(Window.focused && Window.visible),
+			paused: enabled && !Window.visible,
 			desiredRanges: [INITIAL_MEMBER_LIST_SUBSCRIPTION_RANGE],
 		}),
 	);
@@ -209,7 +209,7 @@ export function useMemberListSubscription({
 		const hasLocalSubscription = ownsSubscription && MemberSidebar.getSubscribedRanges(guildId, channelId).length > 0;
 		sendSubscriptionEvent({type: 'memberListSubscription.paused'});
 		if (model.isSubscribed || hasLocalSubscription) {
-			MemberSidebar.releaseMemberListSubscription(guildId, channelId, ownerId, true);
+			MemberSidebar.releaseMemberListSubscription(guildId, channelId, ownerId, true, true);
 		}
 	}, [guildId, channelId, ownerId, clearRetryTimer, readSubscriptionModel, sendSubscriptionEvent]);
 	const resubscribe = useCallback(() => {

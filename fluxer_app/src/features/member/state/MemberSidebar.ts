@@ -18,6 +18,7 @@ import {
 	normalizeMemberListRanges,
 } from '@app/features/member/utils/MemberListRangeUtils';
 import {Logger} from '@app/features/platform/utils/AppLogger';
+import TransientPresence from '@app/features/presence/state/TransientPresence';
 import type {CustomStatus, GatewayCustomStatusPayload} from '@app/features/user/state/CustomStatus';
 import {fromGatewayCustomStatus} from '@app/features/user/state/CustomStatus';
 import {CustomStatusEmitter} from '@app/features/user/state/CustomStatusEmitter';
@@ -568,9 +569,10 @@ class MemberSidebar {
 		}
 		const prunedRows = this.pruneRowsToRanges(boundedRows, subscribedRanges);
 		const newItems = new Map<number, MemberListItem>();
-		const newPresences = new Map<string, StatusType>();
-		const newCustomStatuses = new Map<string, CustomStatus | null>();
+		const newPresences = new Map(listState.presences);
+		const newCustomStatuses = new Map(listState.customStatuses);
 		const nextKnownCustomStatuses = new Map(listState.knownCustomStatuses);
+		const transientPresenceUpdates: Array<{userId: string; status: StatusType}> = [];
 		const userIdRowCounts = new Map<string, number>();
 		const recordCustomStatus = (userId: string, customStatus: CustomStatus | null) => {
 			newCustomStatuses.set(userId, customStatus);
@@ -613,6 +615,9 @@ class MemberSidebar {
 					changedPresenceUserIds.add(row.userId);
 				}
 				newPresences.set(row.userId, presenceStatus);
+				if (previousPresenceStatus !== presenceStatus) {
+					transientPresenceUpdates.push({userId: row.userId, status: presenceStatus});
+				}
 			}
 			if (row.presence && Object.hasOwn(row.presence, 'custom_status')) {
 				const customStatus = fromGatewayCustomStatus(row.presence.custom_status ?? null);
@@ -639,6 +644,9 @@ class MemberSidebar {
 		listState.hasReceivedInitialPayload = true;
 		this.bumpListUpdateVersion(guildId, storageKey);
 		this.lists = {...this.lists, [guildId]: {...guildLists, [storageKey]: listState}};
+		if (transientPresenceUpdates.length > 0) {
+			TransientPresence.updatePresences(transientPresenceUpdates);
+		}
 		if (duplicateUserIds.length > 0) {
 			const uniqueDuplicateUserIds = Array.from(new Set(duplicateUserIds));
 			this.logger.warn('Duplicate member rows received in list update:', {
@@ -827,12 +835,14 @@ class MemberSidebar {
 		clearLocalSubscription,
 		ownerId,
 		updateGateway,
+		preservePresenceCache = false,
 	}: {
 		guildId: string;
 		channelId: string;
 		clearLocalSubscription: boolean;
 		ownerId?: string | null;
 		updateGateway: boolean;
+		preservePresenceCache?: boolean;
 	}): void {
 		if (ownerId !== undefined) {
 			if (!this.isActiveMemberListSubscriptionOwner(guildId, channelId, ownerId)) {
@@ -874,8 +884,9 @@ class MemberSidebar {
 				subscribedRanges: EMPTY_MEMBER_LIST_RANGES,
 				rows: new Map(),
 				items: new Map(),
-				presences: new Map(),
-				customStatuses: new Map(),
+				presences: preservePresenceCache ? existingList.presences : new Map(),
+				customStatuses: preservePresenceCache ? existingList.customStatuses : new Map(),
+				knownCustomStatuses: preservePresenceCache ? existingList.knownCustomStatuses : new Map(),
 			};
 			this.touchList(guildId, storageKey);
 			this.lists = {...this.lists, [guildId]: guildLists};
@@ -904,6 +915,7 @@ class MemberSidebar {
 		channelId: string,
 		ownerId: string,
 		updateGateway = false,
+		preservePresenceCache = false,
 	): void {
 		this.clearChannelSubscription({
 			guildId,
@@ -911,6 +923,7 @@ class MemberSidebar {
 			clearLocalSubscription: true,
 			ownerId,
 			updateGateway,
+			preservePresenceCache,
 		});
 	}
 
