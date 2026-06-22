@@ -118,9 +118,13 @@ export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({
 	const friendsLabel = i18n._(MUTUAL_FRIENDS_COMPACT_DESCRIPTOR, {count: mutualFriendsCount});
 	const showFriendAvatars = hasMutualFriends;
 	const showPlaceIcons = hasMutualPlaces && !hasMutualFriends;
-	const friendAvatarMaxVisible = hasMutualPlaces ? 1 : 3;
 	const placeIconItems = sortedPlaces.slice(0, 3);
+	const friendAvatarMaxVisible = Math.min(3, mutualFriendsCount);
+	const placeIconMaxVisible = Math.min(3, placeIconItems.length);
+	const stackFriendAvatars = mutualFriendsCount > 1;
+	const stackPlaceIcons = placeIconItems.length > 1;
 	const showBothMutuals = hasMutualFriends && hasMutualPlaces;
+	const mutualIconSize = showBothMutuals ? 16 : 20;
 	return (
 		<div
 			className={clsx(styles.mutualsRow, showBothMutuals && styles.mutualsRowCompact)}
@@ -128,14 +132,14 @@ export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({
 		>
 			{showFriendAvatars && (
 				<AvatarStack
-					className={styles.iconStack}
-					size={20}
+					className={clsx(styles.iconStack, showBothMutuals && styles.iconStackCompact)}
+					size={mutualIconSize}
 					maxVisible={friendAvatarMaxVisible}
-					overlap={friendAvatarMaxVisible === 1 ? 0 : undefined}
+					overlap={stackFriendAvatars ? undefined : 0}
 					enableProfileModal={false}
 					showTooltips={false}
 					onUserContextMenu={handleFriendContextMenu}
-					users={sortedFriends}
+					users={sortedFriends.slice(0, friendAvatarMaxVisible)}
 					guildId={profile.guildId ?? guildId}
 					data-flx="user.profile.profile-card.profile-card-mutuals.friend-avatar-stack"
 				/>
@@ -143,16 +147,16 @@ export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({
 			{showPlaceIcons && (
 				<AvatarStack
 					className={styles.iconStack}
-					size={20}
-					maxVisible={3}
-					overlap={placeIconItems.length === 1 ? 0 : undefined}
+					size={mutualIconSize}
+					maxVisible={placeIconMaxVisible}
+					overlap={stackPlaceIcons ? undefined : 0}
 					enableProfileModal={false}
 					showTooltips={false}
 				>
 					{placeIconItems.map((place) =>
 						place.kind === 'group' ? (
 							<div key={place.group.id} className={styles.guildIconWrapper}>
-								<GroupDMAvatar channel={place.group} size={20} />
+								<GroupDMAvatar channel={place.group} size={mutualIconSize} />
 							</div>
 						) : (
 							<div key={place.community.guild.id} className={styles.guildIconWrapper}>
@@ -161,7 +165,7 @@ export const ProfileCardMutuals: React.FC<ProfileCardMutualsProps> = observer(({
 									name={place.community.guild.name}
 									icon={place.community.guild.icon}
 									className={styles.guildIcon}
-									sizePx={20}
+									sizePx={mutualIconSize}
 								/>
 							</div>
 						),

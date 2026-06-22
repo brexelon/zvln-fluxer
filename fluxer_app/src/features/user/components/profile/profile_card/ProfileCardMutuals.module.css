@@ -10,6 +10,7 @@
 
 .mutualsRowCompact {
 	gap: 0.1875rem;
+	--mutual-icon-size: 1rem;
 }
 
 .iconStack {
@@ -20,11 +21,15 @@
 	--avatar-stack-outline-color: var(--background-primary);
 }
 
+.iconStackCompact {
+	--avatar-outline: 0.0625rem;
+}
+
 .guildIconWrapper {
 	display: flex;
 	overflow: hidden;
-	width: 1.25rem;
-	height: 1.25rem;
+	width: var(--mutual-icon-size, 1.25rem);
+	height: var(--mutual-icon-size, 1.25rem);
 	align-items: center;
 	justify-content: center;
 	border-radius: 624.9375rem;
@@ -32,7 +37,7 @@
 }
 
 .guildIcon {
-	--guild-icon-size: 1.25rem;
+	--guild-icon-size: var(--mutual-icon-size, 1.25rem);
 }
 
 .mutualsText {
