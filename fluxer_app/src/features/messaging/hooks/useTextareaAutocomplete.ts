@@ -34,14 +34,17 @@ import type {GuildMember} from '@app/features/member/models/GuildMember';
 import GuildMembers from '@app/features/member/state/GuildMembers';
 import type {SearchContext} from '@app/features/member/state/MemberSearch';
 import MemberSearch from '@app/features/member/state/MemberSearch';
+import MemberSidebar from '@app/features/member/state/MemberSidebar';
 import * as HighlightCommands from '@app/features/messaging/commands/HighlightCommands';
 import * as ReactionCommands from '@app/features/messaging/commands/ReactionCommands';
 import {
 	buildCommandArgOptions,
 	buildEmojiAutocompleteOptions,
 	buildEmojiReactionOptions,
+	collectChannelAccessibleMembers,
 	filterDMUsers,
 	filterGuildMembers,
+	filterMentionableRolesForChannel,
 	getMemberDisplayName,
 	MEMBER_SEARCH_LIMIT,
 	MENTION_RESULT_LIMIT,
@@ -146,6 +149,11 @@ export function useTextareaAutocomplete({
 	const permissionVersion = useSyncExternalStore(Permission.subscribe.bind(Permission), () => Permission.version);
 	const guildMemberVersion = useSyncExternalStore(GuildMembers.subscribe.bind(GuildMembers), () =>
 		channel?.guildId ? GuildMembers.getGuildMemberVersion(channel.guildId) : 0,
+	);
+	const channelMemberListVersion = useSyncExternalStore(MemberSidebar.subscribe.bind(MemberSidebar), () =>
+		channel?.guildId && channel.id
+			? MemberSidebar.getChannelListVersion(channel.guildId, channel.id)
+			: 0,
 	);
 	const gifCacheRef = useRef<Map<string, Array<Gif>>>(new Map());
 	const currentSearchRef = useRef<string | null>(null);
@@ -307,15 +315,18 @@ export function useTextareaAutocomplete({
 		}
 		const searchQuery = autocompleteTriggerMatchedText;
 		const guildId = channel.guildId;
+		const channelId = channel.id;
+		const channelAccessibleMembers = collectChannelAccessibleMembers(guildId, channelId);
 		const isGuildFullyLoaded = GuildMembers.isGuildFullyLoaded(guildId);
 		currentGuildIdRef.current = guildId;
 		const sessionKey = `${guildId}:${searchQuery}`;
 		if (mentionSessionRef.current.key !== sessionKey) {
 			mentionSessionRef.current = {key: sessionKey, order: new Map(), nextRank: 0};
 		}
-		const cachedMembers = GuildMembers.getMembers(guildId);
-		if (cachedMembers.length > 0) {
-			const cachedMatches = matchSorter(cachedMembers, searchQuery, {
+		const memberSource =
+			channelAccessibleMembers.length > 0 ? channelAccessibleMembers : GuildMembers.getMembers(guildId);
+		if (memberSource.length > 0) {
+			const cachedMatches = matchSorter(memberSource, searchQuery, {
 				keys: [(member) => getMemberDisplayName(member), 'nick', 'user.globalName', 'user.username', 'user.tag'],
 			}).slice(0, MEMBER_SEARCH_LIMIT);
 			setMemberSearchResults(cachedMatches);
@@ -338,7 +349,7 @@ export function useTextareaAutocomplete({
 			context.setQuery(searchQuery, {}, new Set(), new Set(), boosters);
 		} else {
 			context.clearQuery();
-			setIsMemberSearchLoading(cachedMembers.length === 0);
+			setIsMemberSearchLoading(memberSource.length === 0);
 		}
 		if (memberFetchDebounceTimerRef.current) {
 			clearTimeout(memberFetchDebounceTimerRef.current);
@@ -350,7 +361,14 @@ export function useTextareaAutocomplete({
 			});
 			memberFetchDebounceTimerRef.current = null;
 		}, fetchDelayMs);
-	}, [autocompleteTriggerMatchedText, autocompleteTriggerType, channel?.guildId, guildMemberVersion]);
+	}, [
+		autocompleteTriggerMatchedText,
+		autocompleteTriggerType,
+		channel?.guildId,
+		channel?.id,
+		guildMemberVersion,
+		channelMemberListVersion,
+	]);
 	const autocompleteQuery = useMemo(() => {
 		if (!autocompleteTrigger) return '';
 		switch (autocompleteTriggerType) {
@@ -545,20 +563,31 @@ export function useTextareaAutocomplete({
 					const userOptions = filterDMUsers(users, parsedQuery);
 					options = channel.isPersonalNotes() ? userOptions : [...userOptions, ...SPECIAL_MENTIONS];
 				} else {
-					const membersToUse = unionMembers(memberSearchResults, GuildMembers.getMembers(channel.guildId ?? ''));
+					const channelAccessibleMembers =
+						channel.guildId != null && channel.id.length > 0
+							? collectChannelAccessibleMembers(channel.guildId, channel.id)
+							: [];
+					const useChannelMemberList = channelAccessibleMembers.length > 0;
+					const membersToUse = unionMembers(
+						memberSearchResults,
+						useChannelMemberList ? channelAccessibleMembers : GuildMembers.getMembers(channel.guildId ?? ''),
+					);
 					const parsedQuery = parseMentionQuery(matchedText ?? '');
 					const queryForMatching = parsedQuery.usernameQuery.trim();
 					const members = filterGuildMembers(
 						membersToUse,
 						parsedQuery,
-						true,
+						!useChannelMemberList,
 						canViewChannel,
 						mentionSessionRef.current.order,
 					);
 					recordMentionMembers(members.map((o) => o.member));
-					const mentionableRoles = Guilds.getGuildRoles(channel.guildId ?? '').filter(
-						(role) =>
-							canMentionRoleInChannel(role.id) && (canMentionEveryone || role.mentionable),
+					const mentionableRoles = filterMentionableRolesForChannel(
+						channel.guildId ?? '',
+						Guilds.getGuildRoles(channel.guildId ?? ''),
+						channelAccessibleMembers,
+						canMentionEveryone,
+						canMentionRoleInChannel,
 					);
 					const matchedRoles = queryForMatching
 						? matchSorter(mentionableRoles, queryForMatching, {
@@ -715,6 +744,7 @@ export function useTextareaAutocomplete({
 		expressionDataVersion,
 		permissionVersion,
 		guildMemberVersion,
+		channelMemberListVersion,
 	]);
 	const applyAutocompleteValue = useCallback(
 		(nextValue: string, nextSegments: ReadonlyArray<MentionSegment>, selectionStart = nextValue.length) => {

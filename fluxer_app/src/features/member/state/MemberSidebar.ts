@@ -28,7 +28,7 @@ import {GuildOperations} from '@fluxer/constants/src/GuildConstants';
 import type {StatusType} from '@fluxer/constants/src/StatusConstants';
 import {StatusTypes} from '@fluxer/constants/src/StatusConstants';
 import type {GuildMemberData} from '@fluxer/schema/src/domains/guild/GuildMemberSchemas';
-import {makeAutoObservable, observable} from 'mobx';
+import {makeAutoObservable, observable, reaction} from 'mobx';
 
 interface MemberListGroup {
 	id: string;
@@ -160,6 +160,7 @@ class MemberSidebar {
 	pruneIntervalId: number | null = null;
 	sessionVersion = 0;
 	listUpdateVersions = new Map<string, number>();
+	private listRevision = 0;
 	private materializedMemberCache = new WeakMap<MemberListMember, GuildMember>();
 	private pendingListUpdateBatches = new Map<string, PendingMemberListUpdateBatch>();
 	private preloadLeaseTimeoutId: number | null = null;
@@ -175,6 +176,7 @@ class MemberSidebar {
 			| 'materializedMemberCache'
 			| 'pendingListUpdateBatches'
 			| 'preloadLeaseTimeoutId'
+			| 'listRevision'
 		>(
 			this,
 			{
@@ -187,10 +189,58 @@ class MemberSidebar {
 				materializedMemberCache: false,
 				pendingListUpdateBatches: false,
 				preloadLeaseTimeoutId: false,
+				listRevision: false,
 			},
 			{autoBind: true},
 		);
 		this.startPruneInterval();
+	}
+
+	get version(): number {
+		return this.sessionVersion + this.listRevision;
+	}
+
+	subscribe(callback: () => void): () => void {
+		return reaction(
+			() => this.version,
+			() => callback(),
+		);
+	}
+
+	getChannelListVersion(guildId: string, channelId: string): number {
+		return this.getListUpdateVersion(guildId, channelId);
+	}
+
+	collectLoadedMembers(guildId: string, channelId: string): Array<GuildMember> {
+		const listState = this.getList(guildId, channelId);
+		if (!listState?.hasReceivedInitialPayload) {
+			return [];
+		}
+		const seen = new Set<string>();
+		const members: Array<GuildMember> = [];
+		const addMember = (userId: string, memberData: MemberListOperationMember) => {
+			if (seen.has(userId)) {
+				return;
+			}
+			seen.add(userId);
+			const item: MemberListItem = {
+				type: 'member',
+				data: {userId, member: memberData},
+			};
+			const member = this.materializeItemMember(guildId, item);
+			if (member) {
+				members.push(member);
+			}
+		};
+		for (const item of listState.items.values()) {
+			addMember(item.data.userId, item.data.member);
+		}
+		for (const row of listState.rows.values()) {
+			if (row.member && row.userId) {
+				addMember(row.userId, row.member);
+			}
+		}
+		return members;
 	}
 
 	handleSessionInvalidated(): void {
@@ -204,6 +254,7 @@ class MemberSidebar {
 		this.lastAccess = {};
 		this.listUpdateVersions.clear();
 		this.sessionVersion += 1;
+		this.listRevision += 1;
 	}
 
 	handleGuildDelete(guildId: string): void {
@@ -978,6 +1029,7 @@ class MemberSidebar {
 	private bumpListUpdateVersion(guildId: string, listId: string): void {
 		const key = this.listUpdateVersionKey(guildId, listId);
 		this.listUpdateVersions.set(key, (this.listUpdateVersions.get(key) ?? 0) + 1);
+		this.listRevision += 1;
 	}
 
 	/**
