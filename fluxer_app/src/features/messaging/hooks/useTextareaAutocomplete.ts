@@ -63,6 +63,7 @@ import {
 import {type MentionSegment, TextareaSegmentManager} from '@app/features/messaging/utils/TextareaSegmentManager';
 import MentionFrecency from '@app/features/notification/state/MentionFrecency';
 import Permission from '@app/features/permissions/state/Permission';
+import * as PermissionUtils from '@app/features/permissions/utils/PermissionUtils';
 import {Logger} from '@app/features/platform/utils/AppLogger';
 import {ComponentDispatch} from '@app/features/platform/utils/ComponentBus';
 import Users from '@app/features/user/state/Users';
@@ -143,6 +144,9 @@ export function useTextareaAutocomplete({
 	const [memberSearchResults, setMemberSearchResults] = useState<Array<GuildMember>>([]);
 	const [isMemberSearchLoading, setIsMemberSearchLoading] = useState(false);
 	const permissionVersion = useSyncExternalStore(Permission.subscribe.bind(Permission), () => Permission.version);
+	const guildMemberVersion = useSyncExternalStore(GuildMembers.subscribe.bind(GuildMembers), () =>
+		channel?.guildId ? GuildMembers.getGuildMemberVersion(channel.guildId) : 0,
+	);
 	const gifCacheRef = useRef<Map<string, Array<Gif>>>(new Map());
 	const currentSearchRef = useRef<string | null>(null);
 	const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -327,17 +331,26 @@ export function useTextareaAutocomplete({
 			}
 			return;
 		}
-		setIsMemberSearchLoading(true);
-		const boosters = MentionFrecency.getBoosters(guildId);
-		context.setQuery(searchQuery, {}, new Set(), new Set(), boosters);
+		const trimmedQuery = searchQuery.trim();
+		if (trimmedQuery.length > 0) {
+			setIsMemberSearchLoading(true);
+			const boosters = MentionFrecency.getBoosters(guildId);
+			context.setQuery(searchQuery, {}, new Set(), new Set(), boosters);
+		} else {
+			context.clearQuery();
+			setIsMemberSearchLoading(cachedMembers.length === 0);
+		}
 		if (memberFetchDebounceTimerRef.current) {
 			clearTimeout(memberFetchDebounceTimerRef.current);
 		}
+		const fetchDelayMs = trimmedQuery.length > 0 ? 300 : 0;
 		memberFetchDebounceTimerRef.current = setTimeout(() => {
-			void MemberSearch.fetchMembersInBackground(searchQuery, [guildId]);
+			void MemberSearch.fetchMembersInBackground(searchQuery, [guildId]).finally(() => {
+				setIsMemberSearchLoading(false);
+			});
 			memberFetchDebounceTimerRef.current = null;
-		}, 300);
-	}, [autocompleteTriggerMatchedText, autocompleteTriggerType, channel?.guildId]);
+		}, fetchDelayMs);
+	}, [autocompleteTriggerMatchedText, autocompleteTriggerType, channel?.guildId, guildMemberVersion]);
 	const autocompleteQuery = useMemo(() => {
 		if (!autocompleteTrigger) return '';
 		switch (autocompleteTriggerType) {
@@ -470,7 +483,24 @@ export function useTextareaAutocomplete({
 		},
 		[channel],
 	);
-	const canViewChannel = useCallback((_userId: string): boolean => true, []);
+	const canViewChannel = useCallback(
+		(userId: string): boolean => {
+			if (!channel) {
+				return true;
+			}
+			return PermissionUtils.canUserAccessChannel(userId, channel);
+		},
+		[channel],
+	);
+	const canMentionRoleInChannel = useCallback(
+		(roleId: string): boolean => {
+			if (!channel) {
+				return true;
+			}
+			return PermissionUtils.canRoleAccessChannel(roleId, channel);
+		},
+		[channel],
+	);
 	useEffect(() => {
 		let options: Array<AutocompleteOption> = [];
 		if (!autocompleteTrigger) {
@@ -527,7 +557,8 @@ export function useTextareaAutocomplete({
 					);
 					recordMentionMembers(members.map((o) => o.member));
 					const mentionableRoles = Guilds.getGuildRoles(channel.guildId ?? '').filter(
-						(role) => canMentionEveryone || role.mentionable,
+						(role) =>
+							canMentionRoleInChannel(role.id) && (canMentionEveryone || role.mentionable),
 					);
 					const matchedRoles = queryForMatching
 						? matchSorter(mentionableRoles, queryForMatching, {
@@ -677,10 +708,13 @@ export function useTextareaAutocomplete({
 		gifState,
 		canUseCommand,
 		canManageUser,
+		canViewChannel,
+		canMentionRoleInChannel,
 		memberSearchResults,
 		i18n,
 		expressionDataVersion,
 		permissionVersion,
+		guildMemberVersion,
 	]);
 	const applyAutocompleteValue = useCallback(
 		(nextValue: string, nextSegments: ReadonlyArray<MentionSegment>, selectionStart = nextValue.length) => {
