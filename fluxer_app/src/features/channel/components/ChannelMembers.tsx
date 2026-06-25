@@ -47,6 +47,7 @@ import Users from '@app/features/user/state/Users';
 import * as AvatarUtils from '@app/features/user/utils/AvatarUtils';
 import * as NicknameUtils from '@app/features/user/utils/NicknameUtils';
 import Window from '@app/features/window/state/Window';
+import {MEDIA_PROXY_AVATAR_SIZE_DEFAULT} from '@fluxer/constants/src/MediaProxyAssetSizes';
 import {ChannelTypes, Permissions} from '@fluxer/constants/src/ChannelConstants';
 import {MEMBER_LIST_RANGE_MAX_SPAN} from '@fluxer/constants/src/GatewayConstants';
 import {GuildFeatures, GuildOperations} from '@fluxer/constants/src/GuildConstants';
@@ -72,7 +73,7 @@ const SUBSCRIPTION_BUFFER_ROWS = 12;
 const SUBSCRIPTION_OVERSCAN_PAGES = 0;
 const RENDER_BUFFER_ROWS = 6;
 const AVATAR_DEFER_AFTER_SCROLL_IDLE_MS = 180;
-const MEMBER_LIST_AVATAR_MEDIA_SIZE = 64;
+const MEMBER_LIST_AVATAR_MEDIA_SIZE = MEDIA_PROXY_AVATAR_SIZE_DEFAULT;
 
 type FrozenMemberListRow =
 	| {
@@ -514,17 +515,16 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 		setDeferAvatarLoad(false);
 	}, []);
 	const markAvatarLoadingDeferred = useCallback(() => {
-		if (!deferAvatarLoad) {
-			setDeferAvatarLoad(true);
-		}
+		setDeferAvatarLoad(true);
 		avatarDeferDeadlineRef.current = performance.now() + AVATAR_DEFER_AFTER_SCROLL_IDLE_MS;
-		if (avatarDeferTimerRef.current == null) {
-			avatarDeferTimerRef.current = window.setTimeout(
-				finishAvatarLoadingDeferralAfterIdle,
-				AVATAR_DEFER_AFTER_SCROLL_IDLE_MS,
-			);
+		if (avatarDeferTimerRef.current != null) {
+			window.clearTimeout(avatarDeferTimerRef.current);
 		}
-	}, [deferAvatarLoad, finishAvatarLoadingDeferralAfterIdle]);
+		avatarDeferTimerRef.current = window.setTimeout(
+			finishAvatarLoadingDeferralAfterIdle,
+			AVATAR_DEFER_AFTER_SCROLL_IDLE_MS,
+		);
+	}, [finishAvatarLoadingDeferralAfterIdle]);
 	const flushScrollRangeUpdate = useCallback(() => {
 		scrollFrameRef.current = null;
 		const metrics = pendingScrollMetricsRef.current;
@@ -665,7 +665,14 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 		);
 	}, [isSubscriptionPaused, refreshVisibleMemberList]);
 	useEffect(() => {
+		setDeferAvatarLoad(false);
+		avatarDeferDeadlineRef.current = 0;
+		if (avatarDeferTimerRef.current != null) {
+			window.clearTimeout(avatarDeferTimerRef.current);
+			avatarDeferTimerRef.current = null;
+		}
 		return () => {
+			setDeferAvatarLoad(false);
 			if (scrollFrameRef.current != null) {
 				window.cancelAnimationFrame(scrollFrameRef.current);
 				scrollFrameRef.current = null;
@@ -777,7 +784,7 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 				if (!member) {
 					continue;
 				}
-				const user = member.user;
+				const user = Users.getUser(member.user.id) ?? member.user;
 				const displayName = member.nick ?? NicknameUtils.getNickname(user, guild.id);
 				const status = resolveMemberListPresence({guildId: guild.id, channelId: channel.id, userId: user.id});
 				const customStatus = resolveMemberListCustomStatus({
@@ -936,7 +943,7 @@ const LazyMemberList = observer(function LazyMemberList({guild, channel}: LazyMe
 			if (!member) {
 				continue;
 			}
-			const user = member.user;
+			const user = Users.getUser(member.user.id) ?? member.user;
 			const displayName = member.nick ?? NicknameUtils.getNickname(user, guild.id);
 			const status = resolveMemberListPresence({guildId: guild.id, channelId: channel.id, userId: user.id});
 			const customStatus = resolveMemberListCustomStatus({
