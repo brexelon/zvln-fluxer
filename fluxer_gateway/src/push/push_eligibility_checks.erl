@@ -78,21 +78,22 @@ check_muted_and_notifications(
     ActualMuted = resolve_actual_muted(ChannelMuted, Muted),
     MuteConfig = push_eligibility:get_setting(mute_config, Settings, undefined),
     IsTempMuted = check_temp_muted(MuteConfig),
-    Level = resolve_message_notifications(
-        ChannelId, Settings, GuildDefaultNotifications
-    ),
-    case Level =:= ?MESSAGE_NOTIFICATIONS_NO_MESSAGES of
+    case ActualMuted orelse IsTempMuted of
         true ->
             false;
         false ->
-            EffectiveLevel =
-                case ActualMuted orelse IsTempMuted of
-                    true -> ?MESSAGE_NOTIFICATIONS_ONLY_MENTIONS;
-                    false -> override_for_large_guild_metadata(LargeGuildMetadata, Level)
-                end,
-            push_eligibility:should_allow_notification(
-                EffectiveLevel, MessageData, UserId, Settings, UserRolesMap, ConnectedUsers
-            )
+            Level = resolve_message_notifications(
+                ChannelId, Settings, GuildDefaultNotifications
+            ),
+            case Level =:= ?MESSAGE_NOTIFICATIONS_NO_MESSAGES of
+                true ->
+                    false;
+                false ->
+                    EffectiveLevel = override_for_large_guild_metadata(LargeGuildMetadata, Level),
+                    push_eligibility:should_allow_notification(
+                        EffectiveLevel, MessageData, UserId, Settings, UserRolesMap, ConnectedUsers
+                    )
+            end
     end.
 
 -spec resolve_actual_muted(boolean() | undefined, boolean()) -> boolean().
@@ -428,14 +429,14 @@ muted_guild_blocks_non_mention_notifications_test() ->
         check_muted_and_notifications(100, 200, MessageData, 0, #{}, Settings, 1, #{}, undefined)
     ).
 
-muted_guild_allows_mention_notifications_test() ->
+muted_guild_blocks_mention_notifications_test() ->
     MessageData = #{
         <<"channel_type">> => 0,
         <<"mentions">> => [#{<<"id">> => <<"100">>}]
     },
     Settings = #{<<"muted">> => true},
     ?assertEqual(
-        true,
+        false,
         check_muted_and_notifications(100, 200, MessageData, 0, #{}, Settings, 1, #{}, undefined)
     ).
 
