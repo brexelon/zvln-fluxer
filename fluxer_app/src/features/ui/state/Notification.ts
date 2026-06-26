@@ -222,20 +222,29 @@ class NotificationState {
 		return false;
 	}
 
-	private shouldNotifyBasedOnSettings(channel: Channel, messageRecord: Message, currentUser: User): boolean {
-		const level = UserGuildSettings.resolvedMessageNotifications({
+	private getChannelNotificationContext(channel: Channel) {
+		return {
 			id: channel.id,
 			guildId: channel.guildId,
 			parentId: channel.parentId ?? undefined,
 			type: channel.type,
-		});
+		};
+	}
+
+	private shouldNotifyBasedOnSettings(channel: Channel, messageRecord: Message, currentUser: User): boolean {
+		const channelContext = this.getChannelNotificationContext(channel);
+		const level = UserGuildSettings.resolvedMessageNotifications(channelContext);
 		if (level === MessageNotifications.NO_MESSAGES) {
 			return false;
+		}
+		const isMention = this.isMessageMentionLike(channel, messageRecord, currentUser);
+		if (UserGuildSettings.isGuildOrChannelMuted(channel.guildId ?? null, channel.id)) {
+			return isMention;
 		}
 		if (level === MessageNotifications.ALL_MESSAGES) {
 			return true;
 		}
-		return this.isMessageMentionLike(channel, messageRecord, currentUser);
+		return isMention;
 	}
 
 	private isFocusedForNotifications(): boolean {
@@ -261,12 +270,12 @@ class NotificationState {
 			return null;
 		}
 		if (
-			UserGuildSettings.allowNoMessages({
+			UserGuildSettings.resolvedMessageNotifications({
 				id: channel.id,
 				guildId: channel.guildId,
 				parentId: channel.parentId ?? undefined,
 				type: channel.type,
-			})
+			}) === MessageNotifications.NO_MESSAGES
 		) {
 			return null;
 		}
