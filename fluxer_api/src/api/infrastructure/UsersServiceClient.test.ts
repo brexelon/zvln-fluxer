@@ -224,7 +224,40 @@ describe('NatsUsersServiceClient', () => {
 		expect(result.get(repositoryUserId)).toEqual(repositoryPartial);
 	});
 
-	it('surfaces service error payloads from the users service', async () => {
+	it('falls back to the repository when the users service returns shard_handler_error', async () => {
+		const userId = createUserID(6001n);
+		const repositoryPartial: UserPartialResponse = {
+			id: userId.toString(),
+			username: 'FromRepository',
+			discriminator: '0',
+			global_name: null,
+			avatar: 'avatar_hash',
+			avatar_color: 0x336699,
+			flags: 0,
+		};
+		const manager = new FakeNatsConnectionManager([{error: 'shard_handler_error'}]);
+		const natsClient = new NatsUsersServiceClient(manager, 250, 'svc.users.test');
+		const repositoryClient: IUsersServiceClient = {
+			getUserPartialResponses: async (userIds) => {
+				const result = new Map<UserID, UserPartialResponse>();
+				for (const id of userIds) {
+					if (id === userId) {
+						result.set(id, repositoryPartial);
+					}
+				}
+				return result;
+			},
+			invalidateUserCache: async () => {},
+		};
+		const client = new FallbackUsersServiceClient(natsClient, repositoryClient);
+
+		const result = await client.getUserPartialResponses([userId]);
+
+		expect(manager.requests).toHaveLength(1);
+		expect(result.get(userId)).toEqual(repositoryPartial);
+	});
+
+	it('surfaces service error payloads from the users service without a fallback client', async () => {
 		const userId = createUserID(6001n);
 		const manager = new FakeNatsConnectionManager([{error: 'shard_handler_error'}]);
 		const client = new NatsUsersServiceClient(manager, 250, 'svc.users.test');
