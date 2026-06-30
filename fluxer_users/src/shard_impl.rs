@@ -373,17 +373,8 @@ impl UsersShard {
                 return Ok(users);
             }
         };
-        let found_ids = fetched_users
-            .iter()
-            .map(|user| user.user_id)
-            .collect::<std::collections::HashSet<_>>();
         for user in &fetched_users {
             self.cache.insert(user.user_id, Some(user.clone())).await;
-        }
-        for user_id in user_ids {
-            if !found_ids.contains(&user_id) {
-                self.cache.insert(user_id, None).await;
-            }
         }
         users.extend(fetched_users);
         Ok(users)

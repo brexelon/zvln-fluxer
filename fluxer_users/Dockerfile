@@ -9,7 +9,7 @@ ENV CARGO_NET_RETRY=10 \
 
 COPY . .
 
-RUN cargo build --release -p fluxer-users
+RUN cargo build --release -p fluxer-users --features scylla
 
 FROM debian:bookworm-slim
 

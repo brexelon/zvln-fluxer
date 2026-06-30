@@ -224,6 +224,48 @@ describe('NatsUsersServiceClient', () => {
 		expect(result.get(repositoryUserId)).toEqual(repositoryPartial);
 	});
 
+	it('enriches null avatars from the repository after a successful NATS users service response', async () => {
+		const userId = createUserID(7003n);
+		const servicePartial: UserPartialResponse = {
+			id: userId.toString(),
+			username: 'FromService',
+			discriminator: '0',
+			global_name: 'Ada',
+			avatar: null,
+			avatar_color: null,
+			flags: 0,
+		};
+		const repositoryPartial: UserPartialResponse = {
+			id: userId.toString(),
+			username: 'FromService',
+			discriminator: '0',
+			global_name: 'Ada',
+			avatar: 'avatar_hash',
+			avatar_color: 0x336699,
+			flags: 0,
+		};
+		const manager = new FakeNatsConnectionManager([{FoundApiPartials: [servicePartial]}]);
+		const natsClient = new NatsUsersServiceClient(manager, 250, 'svc.users.test');
+		const repositoryClient: IUsersServiceClient = {
+			getUserPartialResponses: async (userIds) => {
+				const result = new Map<UserID, UserPartialResponse>();
+				for (const id of userIds) {
+					if (id === userId) {
+						result.set(id, repositoryPartial);
+					}
+				}
+				return result;
+			},
+			invalidateUserCache: async () => {},
+		};
+		const client = new FallbackUsersServiceClient(natsClient, repositoryClient);
+
+		const result = await client.getUserPartialResponses([userId]);
+
+		expect(manager.requests).toHaveLength(1);
+		expect(result.get(userId)).toEqual(repositoryPartial);
+	});
+
 	it('falls back to the repository when the users service returns shard_handler_error', async () => {
 		const userId = createUserID(6001n);
 		const repositoryPartial: UserPartialResponse = {

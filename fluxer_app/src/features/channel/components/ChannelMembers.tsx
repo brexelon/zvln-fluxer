@@ -180,6 +180,7 @@ function FrozenMemberListItem({row}: {row: Extract<FrozenMemberListRow, {type: '
 						<BaseAvatar
 							size={32}
 							avatarUrl={row.avatarUrl}
+							fallbackAvatarUrl={AvatarUtils.getUserAvatarURL({id: row.userId, avatar: null}, false)}
 							status={row.status}
 							showOffline={row.isCurrentUser}
 							userTag={row.userTag}

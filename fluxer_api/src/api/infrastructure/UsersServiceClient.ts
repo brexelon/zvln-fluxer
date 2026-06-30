@@ -67,6 +67,20 @@ export class RepositoryUsersServiceClient implements IUsersServiceClient {
 	async invalidateUserCache(_userId: UserID): Promise<void> {}
 }
 
+function uniqueUserIds(userIds: Array<UserID>): Array<UserID> {
+	const seen = new Set<string>();
+	const unique: Array<UserID> = [];
+	for (const userId of userIds) {
+		const key = userId.toString();
+		if (seen.has(key)) {
+			continue;
+		}
+		seen.add(key);
+		unique.push(userId);
+	}
+	return unique;
+}
+
 export class FallbackUsersServiceClient implements IUsersServiceClient {
 	constructor(
 		private readonly primary: IUsersServiceClient,
@@ -82,12 +96,28 @@ export class FallbackUsersServiceClient implements IUsersServiceClient {
 			return await this.fallback.getUserPartialResponses(userIds);
 		}
 		const missingUserIds = userIds.filter((userId) => !result.has(userId));
-		if (missingUserIds.length === 0) {
+		const staleAvatarUserIds = userIds.filter((userId) => {
+			const partial = result.get(userId);
+			return partial != null && partial.avatar == null;
+		});
+		const fallbackUserIds = uniqueUserIds([...missingUserIds, ...staleAvatarUserIds]);
+		if (fallbackUserIds.length === 0) {
 			return result;
 		}
-		const fallbackPartials = await this.fallback.getUserPartialResponses(missingUserIds);
+		const fallbackPartials = await this.fallback.getUserPartialResponses(fallbackUserIds);
 		for (const [userId, partial] of fallbackPartials) {
-			result.set(userId, partial);
+			const existing = result.get(userId);
+			if (existing == null) {
+				result.set(userId, partial);
+				continue;
+			}
+			if (existing.avatar == null && partial.avatar != null) {
+				result.set(userId, {
+					...existing,
+					avatar: partial.avatar,
+					avatar_color: partial.avatar_color ?? existing.avatar_color,
+				});
+			}
 		}
 		return result;
 	}
